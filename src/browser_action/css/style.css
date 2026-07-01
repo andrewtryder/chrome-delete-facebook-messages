@@ -2,45 +2,45 @@
    CSS VARIABLES — Light & Dark Mode
    ============================================================ */
 :root {
-  --bg-page:        #f2f2f2;
-  --bg-card:        #ffffff;
-  --bg-card-alt:    #eef4fb;
-  --bg-speed:       #f7f9fc;
-  --bg-input:       #ffffff;
-  --text-primary:   #1a202c;
+  --bg-page: #f2f2f2;
+  --bg-card: #ffffff;
+  --bg-card-alt: #eef4fb;
+  --bg-speed: #f7f9fc;
+  --bg-input: #ffffff;
+  --text-primary: #1a202c;
   --text-secondary: #4a5568;
-  --text-muted:     #718096;
-  --border-color:   #dbe4ee;
-  --speed-btn-bg:   rgba(0,0,0,0.05);
-  --speed-btn-border: rgba(0,0,0,0.12);
+  --text-muted: #718096;
+  --border-color: #dbe4ee;
+  --speed-btn-bg: rgba(0, 0, 0, 0.05);
+  --speed-btn-border: rgba(0, 0, 0, 0.12);
   --speed-btn-color: #2d3748;
-  --footer-bg:      #ffffff;
-  --footer-text:    #4a5568;
-  --footer-link-bg: rgba(0,0,0,0.06);
-  --footer-link-border: rgba(0,0,0,0.10);
-  --shadow-sm:      0 2px 8px rgba(0,0,0,0.08);
-  --shadow-md:      0 6px 18px rgba(0,0,0,0.10);
+  --footer-bg: #ffffff;
+  --footer-text: #4a5568;
+  --footer-link-bg: rgba(0, 0, 0, 0.06);
+  --footer-link-border: rgba(0, 0, 0, 0.1);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.1);
 }
 
 body.dark-mode {
-  --bg-page:        #0f1117;
-  --bg-card:        #1a1f2e;
-  --bg-card-alt:    #1e2438;
-  --bg-speed:       #1f2933;
-  --bg-input:       #252d3d;
-  --text-primary:   #e8ecf0;
+  --bg-page: #0f1117;
+  --bg-card: #1a1f2e;
+  --bg-card-alt: #1e2438;
+  --bg-speed: #1f2933;
+  --bg-input: #252d3d;
+  --text-primary: #e8ecf0;
   --text-secondary: #a0aec0;
-  --text-muted:     #718096;
-  --border-color:   rgba(255,255,255,0.10);
-  --speed-btn-bg:   rgba(255,255,255,0.06);
-  --speed-btn-border: rgba(255,255,255,0.12);
+  --text-muted: #718096;
+  --border-color: rgba(255, 255, 255, 0.1);
+  --speed-btn-bg: rgba(255, 255, 255, 0.06);
+  --speed-btn-border: rgba(255, 255, 255, 0.12);
   --speed-btn-color: #d6d9dd;
-  --footer-bg:      #1f2933;
-  --footer-text:    #b6bdc6;
-  --footer-link-bg: rgba(255,255,255,0.07);
-  --footer-link-border: rgba(255,255,255,0.08);
-  --shadow-sm:      0 2px 8px rgba(0,0,0,0.30);
-  --shadow-md:      0 6px 18px rgba(0,0,0,0.35);
+  --footer-bg: #1f2933;
+  --footer-text: #b6bdc6;
+  --footer-link-bg: rgba(255, 255, 255, 0.07);
+  --footer-link-border: rgba(255, 255, 255, 0.08);
+  --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 6px 18px rgba(0, 0, 0, 0.35);
 }
 
 /* ============================================================
@@ -54,7 +54,9 @@ body {
   display: flex;
   flex-direction: column;
   height: auto;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition:
+    background-color 0.25s ease,
+    color 0.25s ease;
 }
 
 .container {
@@ -88,7 +90,11 @@ body {
   justify-content: center;
   font-size: 13px;
   box-shadow: var(--shadow-sm);
-  transition: background 0.2s ease, color 0.2s ease, border-color 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    border-color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .theme-toggle-btn:hover {
@@ -108,12 +114,23 @@ body {
   border-radius: 8px;
   text-align: center;
   margin: 5px 0;
-  box-shadow: 0 4px 8px rgba(0,0,0,0.1), 0 6px 20px rgba(0,0,0,0.1);
+  box-shadow:
+    0 4px 8px rgba(0, 0, 0, 0.1),
+    0 6px 20px rgba(0, 0, 0, 0.1);
   transform: translateY(-2px);
 }
-.custom-alert:hover { transform: translateY(0px); box-shadow: 0 6px 15px rgba(0,0,0,0.15); }
-.custom-alert h2 { font-weight: bold; font-size: 25px; }
-.custom-alert p { text-align: justify; font-size: 14px; }
+.custom-alert:hover {
+  transform: translateY(0px);
+  box-shadow: 0 6px 15px rgba(0, 0, 0, 0.15);
+}
+.custom-alert h2 {
+  font-weight: bold;
+  font-size: 25px;
+}
+.custom-alert p {
+  text-align: justify;
+  font-size: 14px;
+}
 
 .goto-messages-btn {
   background: linear-gradient(135deg, #81d4fa, #ffee58);
@@ -126,9 +143,14 @@ body {
   margin: 20px 0;
   width: 100% !important;
   text-align: center;
-  transition: background 0.3s ease, transform 0.3s ease;
+  transition:
+    background 0.3s ease,
+    transform 0.3s ease;
 }
-.goto-messages-btn:hover { background: linear-gradient(135deg, #4fc3f7, #ffeb3b); transform: scale(1.05); }
+.goto-messages-btn:hover {
+  background: linear-gradient(135deg, #4fc3f7, #ffeb3b);
+  transform: scale(1.05);
+}
 
 /* ============================================================
    TRIAL USAGE — single gradient line (no card)
@@ -152,12 +174,18 @@ body {
 .trial-line-fill {
   height: 100%;
   border-radius: 10px;
-  transition: width 0.45s cubic-bezier(0.4,0,0.2,1);
+  transition: width 0.45s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
-.trial-line-fill.tl-ok    { background: linear-gradient(90deg, #36d1a0, #1fa05f); }
-.trial-line-fill.tl-low   { background: linear-gradient(90deg, #ffb300, #ff8f00); }
-.trial-line-fill.tl-empty { background: linear-gradient(90deg, #ff5f6d, #e0392c); }
+.trial-line-fill.tl-ok {
+  background: linear-gradient(90deg, #36d1a0, #1fa05f);
+}
+.trial-line-fill.tl-low {
+  background: linear-gradient(90deg, #ffb300, #ff8f00);
+}
+.trial-line-fill.tl-empty {
+  background: linear-gradient(90deg, #ff5f6d, #e0392c);
+}
 
 .trial-line-label {
   font-size: 10.5px;
@@ -165,13 +193,25 @@ body {
   text-align: right;
   transition: color 0.25s ease;
 }
-.trial-line-label.tl-ok    { color: #1fa05f; }
-.trial-line-label.tl-low   { color: #ff9f1c; }
-.trial-line-label.tl-empty { color: #e0392c; }
+.trial-line-label.tl-ok {
+  color: #1fa05f;
+}
+.trial-line-label.tl-low {
+  color: #ff9f1c;
+}
+.trial-line-label.tl-empty {
+  color: #e0392c;
+}
 
-body.dark-mode .trial-line-label.tl-ok    { color: #52c98a; }
-body.dark-mode .trial-line-label.tl-low   { color: #ffc240; }
-body.dark-mode .trial-line-label.tl-empty { color: #f27575; }
+body.dark-mode .trial-line-label.tl-ok {
+  color: #52c98a;
+}
+body.dark-mode .trial-line-label.tl-low {
+  color: #ffc240;
+}
+body.dark-mode .trial-line-label.tl-empty {
+  color: #f27575;
+}
 
 .status-strip-premium {
   background: linear-gradient(135deg, #ffd76b, #ffb300);
@@ -180,14 +220,16 @@ body.dark-mode .trial-line-label.tl-empty { color: #f27575; }
   font-weight: 700;
   padding: 6px 18px;
   border-radius: 20px;
-  box-shadow: 0 3px 8px rgba(255,179,0,0.35);
+  box-shadow: 0 3px 8px rgba(255, 179, 0, 0.35);
   letter-spacing: 0.3px;
   display: inline-flex;
   align-items: center;
   margin: 12px auto 4px;
   align-self: center;
 }
-.status-strip-premium i { margin-right: 5px; }
+.status-strip-premium i {
+  margin-right: 5px;
+}
 
 /* ============================================================
    ACTION BUTTONS
@@ -200,8 +242,14 @@ body.dark-mode .trial-line-label.tl-empty { color: #f27575; }
   text-align: justify;
   margin: 20px 0;
 }
-.paymentAlert h4 { font-weight: bold; font-size: 20px; }
-.paymentAlert p { text-align: justify; font-size: 14px; }
+.paymentAlert h4 {
+  font-weight: bold;
+  font-size: 20px;
+}
+.paymentAlert p {
+  text-align: justify;
+  font-size: 14px;
+}
 
 .delete-messages-btn {
   background: linear-gradient(135deg, #ff1e1e, #ff6a1b);
@@ -216,7 +264,9 @@ body.dark-mode .trial-line-label.tl-empty { color: #f27575; }
   text-align: center;
   transition: background 0.3s ease;
 }
-.delete-messages-btn:hover { background: linear-gradient(135deg, #d01717, #e56a00); }
+.delete-messages-btn:hover {
+  background: linear-gradient(135deg, #d01717, #e56a00);
+}
 
 .buy-sale-btn {
   background: linear-gradient(135deg, #6a82fb, #fc5c7d);
@@ -229,9 +279,14 @@ body.dark-mode .trial-line-label.tl-empty { color: #f27575; }
   margin: 10px 0;
   width: 100%;
   text-align: center;
-  transition: background 0.3s ease, transform 0.2s;
+  transition:
+    background 0.3s ease,
+    transform 0.2s;
 }
-.buy-sale-btn:hover { background: linear-gradient(135deg, #5c6bc0, #f06292); transform: scale(1.05); }
+.buy-sale-btn:hover {
+  background: linear-gradient(135deg, #5c6bc0, #f06292);
+  transform: scale(1.05);
+}
 
 .openArchivedMsgs {
   background: linear-gradient(135deg, #ff9800, #ffc107);
@@ -244,9 +299,14 @@ body.dark-mode .trial-line-label.tl-empty { color: #f27575; }
   margin: 10px 0;
   width: 100%;
   text-align: center;
-  transition: background 0.3s ease, transform 0.2s;
+  transition:
+    background 0.3s ease,
+    transform 0.2s;
 }
-.openArchivedMsgs:hover { background: linear-gradient(135deg, #fb8c00, #ffa000); transform: scale(1.05); }
+.openArchivedMsgs:hover {
+  background: linear-gradient(135deg, #fb8c00, #ffa000);
+  transform: scale(1.05);
+}
 
 .archive-messages-btn {
   background: linear-gradient(135deg, #80deea, #26c6da);
@@ -261,9 +321,14 @@ body.dark-mode .trial-line-label.tl-empty { color: #f27575; }
   text-align: center;
   transition: background 0.3s ease;
 }
-.archive-messages-btn:hover { background: linear-gradient(135deg, #4dd0e1, #00acc1); }
+.archive-messages-btn:hover {
+  background: linear-gradient(135deg, #4dd0e1, #00acc1);
+}
 
-.disabled-button { opacity: 0.5; pointer-events: none; }
+.disabled-button {
+  opacity: 0.5;
+  pointer-events: none;
+}
 
 /* ============================================================
    FOOTER — small, minimal, icon-based
@@ -276,8 +341,8 @@ body.dark-mode .trial-line-label.tl-empty { color: #f27575; }
   background: var(--footer-bg);
   color: var(--footer-text);
   height: 40px;
-  border-top: 1px solid rgba(255,255,255,0.06);
-  box-shadow: 0 -4px 12px rgba(0,0,0,0.18);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.18);
   transition: background 0.25s ease;
   z-index: 100;
 }
@@ -333,17 +398,20 @@ body.dark-mode .trial-line-label.tl-empty { color: #f27575; }
   text-decoration: none;
   background: var(--footer-link-bg);
   border: 1px solid var(--footer-link-border);
-  transition: background 0.2s ease, color 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    color 0.2s ease,
+    transform 0.2s ease;
 }
 
 .footer-link:hover {
-  background: rgba(91,134,229,0.25);
+  background: rgba(91, 134, 229, 0.25);
   color: #a0c4ff;
   transform: translateY(-2px);
 }
 
 .footer-link-premium:hover {
-  background: rgba(255,179,0,0.2);
+  background: rgba(255, 179, 0, 0.2);
   color: #ffd76b;
 }
 
@@ -358,14 +426,16 @@ body.dark-mode .trial-line-label.tl-empty { color: #f27575; }
   padding: 12px 14px 14px;
   margin: 14px 0 6px;
   box-shadow: var(--shadow-sm);
-  transition: background 0.25s ease, border-color 0.25s ease;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease;
 }
 
 /* Keep dark styling for speed section in dark mode */
 body.dark-mode .speed-section {
   background: linear-gradient(135deg, #1f2933, #111827);
   border-color: transparent;
-  box-shadow: 0 4px 14px rgba(0,0,0,0.28);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.28);
 }
 
 .speed-section-title {
@@ -379,7 +449,9 @@ body.dark-mode .speed-section {
   letter-spacing: 0.3px;
 }
 
-body.dark-mode .speed-section-title { color: #f5f5f5; }
+body.dark-mode .speed-section-title {
+  color: #f5f5f5;
+}
 
 .speed-section-title .current-speed-pill {
   margin-left: auto;
@@ -418,11 +490,14 @@ body.dark-mode .speed-section-title { color: #f5f5f5; }
   user-select: none;
 }
 
-.speed-btn .speed-icon { font-size: 16px; line-height: 1; }
+.speed-btn .speed-icon {
+  font-size: 16px;
+  line-height: 1;
+}
 
 .speed-btn:hover {
   border-color: #5b86e5;
-  background: rgba(91,134,229,0.15);
+  background: rgba(91, 134, 229, 0.15);
   transform: translateY(-2px);
 }
 
@@ -430,12 +505,19 @@ body.dark-mode .speed-section-title { color: #f5f5f5; }
   background: linear-gradient(135deg, #36d1dc, #5b86e5);
   border-color: transparent;
   color: #ffffff;
-  box-shadow: 0 4px 10px rgba(54,209,220,0.35);
+  box-shadow: 0 4px 10px rgba(54, 209, 220, 0.35);
   transform: translateY(-1px);
 }
 
-.speed-btn.locked { color: #8a8f98; background: rgba(255,255,255,0.03); }
-.speed-btn.locked:hover { border-color: rgba(255,196,0,0.6); background: rgba(255,196,0,0.08); transform: none; }
+.speed-btn.locked {
+  color: #8a8f98;
+  background: rgba(255, 255, 255, 0.03);
+}
+.speed-btn.locked:hover {
+  border-color: rgba(255, 196, 0, 0.6);
+  background: rgba(255, 196, 0, 0.08);
+  transform: none;
+}
 
 .speed-btn .lock-badge {
   position: absolute;
@@ -450,11 +532,20 @@ body.dark-mode .speed-section-title { color: #f5f5f5; }
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 }
 
-.speed-hint { color: #9aa1ab; font-size: 11px; text-align: center; margin-top: 9px; }
-.speed-hint a { color: #4fd1ff; font-weight: 600; text-decoration: none; }
+.speed-hint {
+  color: #9aa1ab;
+  font-size: 11px;
+  text-align: center;
+  margin-top: 9px;
+}
+.speed-hint a {
+  color: #4fd1ff;
+  font-weight: 600;
+  text-decoration: none;
+}
 
 /* ============================================================
    LICENSE SECTION — Premium redesign
@@ -475,12 +566,14 @@ body.dark-mode .speed-section-title { color: #f5f5f5; }
   text-align: center;
   box-sizing: border-box;
   position: relative;
-  transition: background 0.25s ease, border-color 0.25s ease;
+  transition:
+    background 0.25s ease,
+    border-color 0.25s ease;
 }
 
 body.dark-mode .license-card {
   background: linear-gradient(160deg, #1a1f2e, #1e2438);
-  border-color: rgba(91,134,229,0.2);
+  border-color: rgba(91, 134, 229, 0.2);
 }
 
 /* Floating crown badge */
@@ -493,14 +586,19 @@ body.dark-mode .license-card {
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 6px 16px rgba(255,179,0,0.40);
+  box-shadow: 0 6px 16px rgba(255, 179, 0, 0.4);
   border: 3px solid var(--bg-card);
 }
 
-.license-badge i { color: #4a2e00; font-size: 20px; }
+.license-badge i {
+  color: #4a2e00;
+  font-size: 20px;
+}
 
 /* Header */
-.license-header { margin-bottom: 14px; }
+.license-header {
+  margin-bottom: 14px;
+}
 
 .license-title {
   font-size: 17px;
@@ -533,15 +631,19 @@ body.dark-mode .license-card {
   border: 1px solid var(--border-color);
   border-radius: 10px;
   padding: 8px 4px 7px;
-  transition: background 0.2s ease, transform 0.2s ease;
+  transition:
+    background 0.2s ease,
+    transform 0.2s ease;
 }
 
 body.dark-mode .adv-item {
-  background: rgba(255,255,255,0.04);
-  border-color: rgba(255,255,255,0.08);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
 }
 
-.adv-item:hover { transform: translateY(-2px); }
+.adv-item:hover {
+  transform: translateY(-2px);
+}
 
 .adv-icon {
   width: 28px;
@@ -586,14 +688,20 @@ body.dark-mode .adv-item {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+  transition:
+    border-color 0.2s ease,
+    box-shadow 0.2s ease,
+    background 0.2s ease;
 }
 
-.license-input::placeholder { color: var(--text-muted); font-size: 12px; }
+.license-input::placeholder {
+  color: var(--text-muted);
+  font-size: 12px;
+}
 
 .license-input:focus {
   border-color: #5b86e5;
-  box-shadow: 0 0 0 3px rgba(91,134,229,0.15);
+  box-shadow: 0 0 0 3px rgba(91, 134, 229, 0.15);
 }
 
 .submitLicenseKey {
@@ -604,17 +712,22 @@ body.dark-mode .adv-item {
   border-radius: 10px;
   font-size: 13px;
   cursor: pointer;
-  transition: background 0.4s ease, transform 0.3s ease;
+  transition:
+    background 0.4s ease,
+    transform 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 1px;
   width: 100%;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 7px;
 }
-.submitLicenseKey:hover { background: linear-gradient(135deg, #25597b, #4d85a8); transform: scale(1.03); }
+.submitLicenseKey:hover {
+  background: linear-gradient(135deg, #25597b, #4d85a8);
+  transform: scale(1.03);
+}
 
 /* Divider */
 .license-divider {
@@ -627,7 +740,7 @@ body.dark-mode .adv-item {
 }
 .license-divider::before,
 .license-divider::after {
-  content: '';
+  content: "";
   flex: 1;
   height: 1px;
   background: var(--border-color);
@@ -648,14 +761,19 @@ body.dark-mode .adv-item {
   font-size: 13px;
   width: 100%;
   cursor: pointer;
-  transition: background 0.4s ease, transform 0.3s ease;
+  transition:
+    background 0.4s ease,
+    transform 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 1px;
   text-align: center;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.2);
   box-sizing: border-box;
 }
-.buySubs:hover { background: linear-gradient(135deg, #2e5f8c, #5e9cc8); transform: scale(1.03); }
+.buySubs:hover {
+  background: linear-gradient(135deg, #2e5f8c, #5e9cc8);
+  transform: scale(1.03);
+}
 
 /* ============================================================
    MISC
