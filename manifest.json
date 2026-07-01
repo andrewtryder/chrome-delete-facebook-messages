@@ -1,0 +1,44 @@
+{
+"update_url": "https://clients2.google.com/service/update2/crx",
+
+  "name": "Delete Facebook Messages Fast 2026",
+  "short_name": "DFMF",
+  "version": "3.8",
+  "manifest_version": 3,
+  "description": "One-click delete 🗑️, archive 📂, or unarchive 🔓 all types of messages for a clutter-free conversation list. 🧹",
+  "author": "© 2026 — Original Copyrighted Work — All Rights Reserved",
+  "icons": {
+    "128": "icons/128.png",
+    "256": "icons/256.png"
+  },
+  "action": {
+    "default_icon": "icons/128.png",
+    "default_title": "DFMF",
+    "default_popup": "src/browser_action/browser_action.html"
+  },
+  "content_scripts": [{
+    "matches": [
+      "https://*.facebook.com/*",
+      "https://*.messenger.com/*"
+    ],
+    "css": [
+      "css/style.css"
+    ],
+    "js": [
+      "js/jquery.min.js",
+      "js/sweetAlert.min.js",
+      "js/jquery-confirm.js",
+      "js/script.js"
+    ],
+    "run_at": "document_end"
+  }],
+
+  "permissions": [
+     "tabs",
+    "storage"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  }
+
+}

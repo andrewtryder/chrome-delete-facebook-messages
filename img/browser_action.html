@@ -1,0 +1,130 @@
+<html>
+
+<head>
+  <link rel="stylesheet" type="text/css" href="css/bootstrap.min.css" />
+  <link rel="stylesheet" type="text/css" href="css/toastr.min.css" />
+  <link rel="stylesheet" type="text/css" href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
+  <link rel="stylesheet" type="text/css" href="css/style.css" />
+
+</head>
+<style>
+
+.keyInput,
+.keyInput::placeholder {
+    font: 12px/5 sans-serif;
+
+}
+
+</style>
+
+<body ng-app="myapp" ng-controller="ctrl" style="padding-bottom:8px !important; font-family: 'Niconne', cursive;width:363px">
+  <div class="header">
+    <div class="d-flex justify-content-between p-2" style="background:#3669E9;;align-items:center;">
+      <div class="p-2">
+        <img src="/img/seo-debate1 1.png" alt="" style="width:18px;height:18px">
+        <span style="color:#fff;font-size:15px;letter-spacing:1px;margin-top:4px;margin-left:1px;" > <b id="titleO">FB</b><span id="titleS">Chats Cleaner</span></span>
+      </div>
+
+      <div style="text-align:center">
+        <div class="d-flex justify-content-between">
+          <div class="" style="margin-top:9px;margin-right:5px;">
+           <label class="switch">
+            <input type="checkbox" class="form-check-input" id="checkBox" ng-click="MainOnOFF()">
+            <span class="slider round"></span>
+          </label>
+          </div>
+          <div class="" id="moonMode" style="padding:5px;cursor:pointer;">
+            <img src="/img/Dark.png" alt="" style="width:20px;height:20px;z-index:999;color:#fff !important"></a>
+          </div>
+          <div class="SettingBtn" style="padding:4px;margin-top:2px;" id="SettingBtn">
+            <span type="button" name="button">
+              <img src="/img/hamburger-menu 1.png" alt="" style="width:18px;height:18px;z-index:999;color:#fff !important"></a>
+            </span>
+          </div>
+          <div class="" style="padding:4px;">
+            <span type="button" name="button" ng-click="closeBtn()">
+              <img src="/img/Close (1).png" alt="" style="width:21px;height:21px;z-index:999;color:#fff !important"></a>
+            </span>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-12 py-5 px-5" ng-hide="license">
+      <div class="form-group">
+        <label for="" class="px-5 mb-2" style="font-size:17px">Enter Your License Key</label>
+        <input type="text" class="form-control keyInput" ng-model="license_key" name="" placeholder="JHJHA65G-VSA6V9D4-A4V8D0DD-AV9S3D0A" value="">
+        <button type="button" ng-click="verify_license(license_key)" class="btn btn-primary text-center mt-2" style="width:100%" name="button">
+          {{licensebb ? 'Loading' : 'Submit'}}
+        </button>
+        <div class="text-danger" style="margin-top:20px;" ng-show="error"> License key is invalid </div>
+        <div class="text-success" style="margin-top:20px;" ng-show="wlcm"> Welcome </div>
+      </div>
+      <div class="text-center mt-3">
+        <label for="" class="px-5 mb-2" style="font-size:17px"> Need a License Key ?</label>
+        <a type="button" href="https://zakirkhan6269.gumroad.com/l/ocelw" target="_blank" class="btn btn-secondary text-center mt-2" style="width:100%; line-height:25px;" name="button">Buy Subscription for $7</a>
+      </div>
+    </div>
+
+    <div class="col-md-12 px-5 py-2" ng-show="license" >
+      <div class="mt-1 px-5 text-center">
+        <label for="" class="text-secondary font-weight-bold">1st Step</label>
+        <a href="https://www.facebook.com/messages/" target="_blank" style="text-decoration:none">
+          <button type="button" class="btn btn-info btn-block mb-3" name="button" style="border-radius:0px;">Load Your Chat List</button>
+        </a>
+        <label for="" class="text-secondary font-weight-bold">2nd Step</label><br>
+        <label for="" class="text-info text-uppercase">Type your Limit</label>
+        <input type="number" class="form-control mb-2" name="" value="" ng-model="userlimit" required>
+        <button type="button" id="deleteChat" class="btn btn-danger btn-block mb-1" name="button" style="border-radius:0px;letter-spacing:1px"> Delete Chat</button></i>
+        <label for="" class="text-secondary font-weight-bold mt-2">It Will Automatically Delete Your All Chats</label>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+
+  <footer class="page-footer font-small special-color-dark">
+    <div class="py-1 text-center">
+      <div class="py-2" style="font-size:12px;" ng-show="license" >
+        <a href="https://www.facebook.com/Engr.ZA/" target="_blank" class="fb-ic mr-3" role="button" style="color:#1b74e4;"><i class="fa fa-lg fa-facebook-f"></i></a>
+
+        <a href="https://www.instagram.com/xakir_khn/" target="_blank" class="email-ic mr-3" role="button" style="color: #f09433"><i class="fa fa-lg fa-instagram"></i></a>
+
+        <a href="https://twitter.com/Xakir_khan0" target="_blank" class="tw-ic mr-3" role="button" style="color:#55acee;.margin-left:8px"><i class="fa fa-lg fa-twitter"></i></a>
+      </div>
+
+      <div class="footer-copyright text-info py-1" style="font-size:12px;background:#F0F0F0;border-radius:3px;">
+        Developed By : <span>Zakir Khan</span>
+      </div>
+
+    </div>
+
+
+  </footer>
+  <!-- Footer -->
+
+
+
+  <div class="text-center" style="font-size:12px">
+    <a href="https://chrome.google.com/webstore/detail/delete-all-chats-on-faceb/ihemghdjahjpbpdagihedhegcojhnbgc" target="_blank">
+      <span><i class="fa fa-star"></i></span> <span><i class="fa fa-star"></i></span>
+      <span><i class="fa fa-star"></i></span> <span><i class="fa fa-star"></i></span>
+      <span><i class="fa fa-star"></i></span>
+    </a>
+  </div>
+
+
+
+
+</body>
+<script src="../../js/jquery.min.js"> </script>
+<script src="js/angular.min.js"> </script>
+<script src="js/papaparse.min.js"> </script>
+<script src="js/toastr.min.js"> </script>
+<script src="js/bootstrap.min.js"> </script>
+<script src="js/browser_action.js"> </script>
+
+</html>
