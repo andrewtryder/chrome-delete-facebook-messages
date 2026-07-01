@@ -18,7 +18,7 @@ console.log("Current URL:", window.location.href);
     normal: 10.0,
     fast: 5.0,
     veryfast: 2.5,
-    ultra: 1.2
+    ultra: 1.2,
   };
 
   const SELECTORS = {
@@ -38,17 +38,15 @@ console.log("Current URL:", window.location.href);
     menuItem:
       '[role="menuitem"], [role="menuitemradio"], [role="option"], div[role="button"], button, a[role="link"], a[href]',
 
-    dialog:
-      '[role="dialog"]',
+    dialog: '[role="dialog"]',
 
     dialogButton:
       '[role="dialog"] [role="button"], [role="dialog"] button, [role="dialog"] a[role="link"]',
 
-    confirmButtonCandidate:
-      'button, [role="button"], [aria-label]',
+    confirmButtonCandidate: 'button, [role="button"], [aria-label]',
 
     marketplaceCandidate:
-      '[role="button"], [role="row"], [role="listitem"], a[href], div[aria-label]'
+      '[role="button"], [role="row"], [role="listitem"], a[href], div[aria-label]',
   };
 
   const ACTIONS = {
@@ -59,11 +57,13 @@ console.log("Current URL:", window.location.href);
       errorAction: "deleteError",
       label: "Delete",
       popupLabel: "Delete",
-      menuRegex: /^(delete|delete chat|delete conversation|remove|remove chat|remove conversation)$/i,
+      menuRegex:
+        /^(delete|delete chat|delete conversation|remove|remove chat|remove conversation)$/i,
       looseMenuRegex: /\b(delete|remove)\b/i,
-      confirmRegex: /^(delete|delete chat|delete conversation|delete messages?|remove)$/i,
+      confirmRegex:
+        /^(delete|delete chat|delete conversation|delete messages?|remove)$/i,
       requiresConfirm: true,
-      emptyMessage: "No Messages Found / All Deleted Successfully"
+      emptyMessage: "No Messages Found / All Deleted Successfully",
     },
     archive: {
       startedAction: "archiveStarted",
@@ -76,7 +76,7 @@ console.log("Current URL:", window.location.href);
       looseMenuRegex: /\barchive\b/i,
       confirmRegex: null,
       requiresConfirm: false,
-      emptyMessage: "No Messages Found / All Archived Successfully"
+      emptyMessage: "No Messages Found / All Archived Successfully",
     },
     deleteBuySell: {
       startedAction: "deleteBuySellStarted",
@@ -85,11 +85,13 @@ console.log("Current URL:", window.location.href);
       errorAction: "deleteBuySellError",
       label: "Delete Buy/Sell",
       popupLabel: "Delete Buy/Sell",
-      menuRegex: /^(delete|delete chat|delete conversation|remove|remove chat|remove conversation)$/i,
+      menuRegex:
+        /^(delete|delete chat|delete conversation|remove|remove chat|remove conversation)$/i,
       looseMenuRegex: /\b(delete|remove)\b/i,
-      confirmRegex: /^(delete|delete chat|delete conversation|delete messages?|remove)$/i,
+      confirmRegex:
+        /^(delete|delete chat|delete conversation|delete messages?|remove)$/i,
       requiresConfirm: true,
-      emptyMessage: "No Buy/Sell Messages / All Deleted"
+      emptyMessage: "No Buy/Sell Messages / All Deleted",
     },
     unarchive: {
       startedAction: "unarchiveStarted",
@@ -98,12 +100,13 @@ console.log("Current URL:", window.location.href);
       errorAction: "unarchiveError",
       label: "Unarchive",
       popupLabel: "Unarchive",
-      menuRegex: /^(unarchive|unarchive chat|unarchive conversation|move to inbox|restore|restore chat)$/i,
+      menuRegex:
+        /^(unarchive|unarchive chat|unarchive conversation|move to inbox|restore|restore chat)$/i,
       looseMenuRegex: /\b(unarchive|move to inbox|restore)\b/i,
       confirmRegex: null,
       requiresConfirm: false,
-      emptyMessage: "No Archived Messages / All Unarchived"
-    }
+      emptyMessage: "No Archived Messages / All Unarchived",
+    },
   };
 
   // ---------------------------------------------------------------------------
@@ -123,11 +126,13 @@ console.log("Current URL:", window.location.href);
   function formatNumber(value) {
     if (value < 1000) return String(value);
     const tier = Math.floor(Math.log10(value) / 3);
-    return (value / Math.pow(1000, tier)).toFixed(1) + ["K", "M", "B"][tier - 1];
+    return (
+      (value / Math.pow(1000, tier)).toFixed(1) + ["K", "M", "B"][tier - 1]
+    );
   }
 
   function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   async function waitFor(fn, timeoutMs = 5000, intervalMs = 100) {
@@ -159,14 +164,20 @@ console.log("Current URL:", window.location.href);
     const baseMs = Math.max(250, actionDelaySeconds * 1000);
     const jitterMs = Math.floor(350 + Math.random() * 900);
     const totalMs = baseMs + jitterMs;
-    console.log(`⏳ Waiting ${Math.round(totalMs / 1000)} seconds before next action`);
+    console.log(
+      `⏳ Waiting ${Math.round(totalMs / 1000)} seconds before next action`,
+    );
     await sleep(totalMs);
   }
 
   function isVisible(el) {
     if (!el || !(el instanceof Element)) return false;
     const style = window.getComputedStyle(el);
-    if (style.visibility === "hidden" || style.display === "none" || Number(style.opacity) === 0) {
+    if (
+      style.visibility === "hidden" ||
+      style.display === "none" ||
+      Number(style.opacity) === 0
+    ) {
       return false;
     }
     const rect = el.getBoundingClientRect();
@@ -174,7 +185,9 @@ console.log("Current URL:", window.location.href);
   }
 
   function cleanText(value) {
-    return String(value || "").replace(/\s+/g, " ").trim();
+    return String(value || "")
+      .replace(/\s+/g, " ")
+      .trim();
   }
 
   function textVariants(el) {
@@ -184,7 +197,7 @@ console.log("Current URL:", window.location.href);
       el.innerText,
       el.textContent,
       el.getAttribute && el.getAttribute("aria-label"),
-      el.getAttribute && el.getAttribute("title")
+      el.getAttribute && el.getAttribute("title"),
     ]
       .map(cleanText)
       .filter(Boolean)
@@ -208,7 +221,10 @@ console.log("Current URL:", window.location.href);
   }
 
   function textMatches(el, regex) {
-    return textVariants(el).some(text => regex.test(text)) || regex.test(normalizedText(el));
+    return (
+      textVariants(el).some((text) => regex.test(text)) ||
+      regex.test(normalizedText(el))
+    );
   }
 
   function queryAll(selector, root = document) {
@@ -229,14 +245,18 @@ console.log("Current URL:", window.location.href);
   }
 
   function findVisibleByText(selector, regex, root = document) {
-    return visibleElements(selector, root).find(el => textMatches(el, regex)) || null;
+    return (
+      visibleElements(selector, root).find((el) => textMatches(el, regex)) ||
+      null
+    );
   }
 
   function closestClickable(el) {
     if (!el) return null;
     return (
-      el.closest('[role="menuitem"], [role="button"], button, a[href], [tabindex]') ||
-      el
+      el.closest(
+        '[role="menuitem"], [role="button"], button, a[href], [tabindex]',
+      ) || el
     );
   }
 
@@ -244,7 +264,7 @@ console.log("Current URL:", window.location.href);
     const rect = el.getBoundingClientRect();
     return {
       x: rect.left + rect.width / 2,
-      y: rect.top + rect.height / 2
+      y: rect.top + rect.height / 2,
     };
   }
 
@@ -258,8 +278,8 @@ console.log("Current URL:", window.location.href);
         view: window,
         clientX: point.x,
         clientY: point.y,
-        buttons: type === "mousedown" ? 1 : 0
-      })
+        buttons: type === "mousedown" ? 1 : 0,
+      }),
     );
   }
 
@@ -277,8 +297,8 @@ console.log("Current URL:", window.location.href);
         isPrimary: true,
         clientX: point.x,
         clientY: point.y,
-        buttons: type === "pointerdown" ? 1 : 0
-      })
+        buttons: type === "pointerdown" ? 1 : 0,
+      }),
     );
   }
 
@@ -287,7 +307,11 @@ console.log("Current URL:", window.location.href);
     if (!el) return false;
 
     try {
-      el.scrollIntoView({ block: "center", inline: "center", behavior: "instant" });
+      el.scrollIntoView({
+        block: "center",
+        inline: "center",
+        behavior: "instant",
+      });
     } catch (_) {
       el.scrollIntoView({ block: "center", inline: "center" });
     }
@@ -315,13 +339,14 @@ console.log("Current URL:", window.location.href);
       "mousedown",
       "pointerup",
       "mouseup",
-      "click"
+      "click",
     ];
 
     for (const type of events) {
-      const EventCtor = type.startsWith("pointer") && typeof PointerEvent === "function"
-        ? PointerEvent
-        : MouseEvent;
+      const EventCtor =
+        type.startsWith("pointer") && typeof PointerEvent === "function"
+          ? PointerEvent
+          : MouseEvent;
 
       el.dispatchEvent(
         new EventCtor(type, {
@@ -335,8 +360,8 @@ console.log("Current URL:", window.location.href);
           pointerType: "mouse",
           isPrimary: true,
           button: 0,
-          buttons: type.endsWith("down") ? 1 : 0
-        })
+          buttons: type.endsWith("down") ? 1 : 0,
+        }),
       );
     }
 
@@ -355,14 +380,40 @@ console.log("Current URL:", window.location.href);
       if (typeof el.focus === "function") el.focus({ preventScroll: true });
     } catch (_) {}
 
-    el.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }));
-    el.dispatchEvent(new KeyboardEvent("keyup", { key: "Enter", code: "Enter", bubbles: true, cancelable: true }));
+    el.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Enter",
+        code: "Enter",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
+    el.dispatchEvent(
+      new KeyboardEvent("keyup", {
+        key: "Enter",
+        code: "Enter",
+        bubbles: true,
+        cancelable: true,
+      }),
+    );
     return true;
   }
 
   function pressEscape() {
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", code: "Escape", bubbles: true }));
-    document.dispatchEvent(new KeyboardEvent("keyup", { key: "Escape", code: "Escape", bubbles: true }));
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "Escape",
+        code: "Escape",
+        bubbles: true,
+      }),
+    );
+    document.dispatchEvent(
+      new KeyboardEvent("keyup", {
+        key: "Escape",
+        code: "Escape",
+        bubbles: true,
+      }),
+    );
   }
 
   function showStatus(message) {
@@ -390,16 +441,18 @@ console.log("Current URL:", window.location.href);
         "box-shadow: 0 -4px 10px rgba(0,0,0,.3)",
         "z-index: 2147483647",
         "font-family: Arial, sans-serif",
-        "border-radius: 12px"
+        "border-radius: 12px",
       ].join("; ");
 
       const title = document.createElement("div");
       title.textContent = "🗑️ Delete Facebook Messages Fast 2026";
-      title.style.cssText = "display:flex;align-items:center;font-size:16px;font-weight:normal;gap:8px;white-space:nowrap";
+      title.style.cssText =
+        "display:flex;align-items:center;font-size:16px;font-weight:normal;gap:8px;white-space:nowrap";
 
       const body = document.createElement("div");
       body.className = "popup-message";
-      body.style.cssText = "flex-grow:1;text-align:center;font-size:20px;font-weight:500";
+      body.style.cssText =
+        "flex-grow:1;text-align:center;font-size:20px;font-weight:500";
 
       const stop = document.createElement("button");
       stop.id = "stopDeletionButton";
@@ -413,7 +466,7 @@ console.log("Current URL:", window.location.href);
         "color:white",
         "border-radius:8px",
         "cursor:pointer",
-        "box-shadow:0 4px 10px rgba(0,0,0,.2)"
+        "box-shadow:0 4px 10px rgba(0,0,0,.2)",
       ].join("; ");
       stop.addEventListener("click", stopAutomation);
 
@@ -437,8 +490,11 @@ console.log("Current URL:", window.location.href);
   }
 
   function isMessengerPage() {
-    return /(^|\.)facebook\.com\/messages/i.test(location.hostname + location.pathname) ||
-      /(^|\.)messenger\.com$/i.test(location.hostname);
+    return (
+      /(^|\.)facebook\.com\/messages/i.test(
+        location.hostname + location.pathname,
+      ) || /(^|\.)messenger\.com$/i.test(location.hostname)
+    );
   }
 
   // ---------------------------------------------------------------------------
@@ -446,16 +502,18 @@ console.log("Current URL:", window.location.href);
   // ---------------------------------------------------------------------------
   function getThreadMenuButtons(skipLabels = new Set()) {
     const primary = visibleElements(SELECTORS.threadMenuButton);
-    const fallback = primary.length ? primary : visibleElements(SELECTORS.threadMenuButtonFallback);
+    const fallback = primary.length
+      ? primary
+      : visibleElements(SELECTORS.threadMenuButtonFallback);
 
     return fallback
-      .map(el => ({
+      .map((el) => ({
         el,
         label: el.getAttribute("aria-label") || normalizedText(el),
-        top: el.getBoundingClientRect().top
+        top: el.getBoundingClientRect().top,
       }))
-      .filter(item => /^More options for/i.test(item.label || ""))
-      .filter(item => !skipLabels.has(item.label))
+      .filter((item) => /^More options for/i.test(item.label || ""))
+      .filter((item) => !skipLabels.has(item.label))
       .sort((a, b) => a.top - b.top);
   }
 
@@ -463,7 +521,9 @@ console.log("Current URL:", window.location.href);
     const clickable = closestClickable(menuButton);
     if (!clickable) return false;
 
-    const row = clickable.closest('[role="row"], [role="listitem"], [aria-label], a[href]');
+    const row = clickable.closest(
+      '[role="row"], [role="listitem"], [aria-label], a[href]',
+    );
     if (row) {
       dispatchMouse(row, "mouseover");
       dispatchMouse(row, "mouseenter");
@@ -473,26 +533,38 @@ console.log("Current URL:", window.location.href);
 
     realClick(clickable);
 
-    const opened = await waitFor(() => {
-      const menuItem = findVisible('[role="menuitem"], [role="menuitemradio"]');
-      if (menuItem) return menuItem;
+    const opened = await waitFor(
+      () => {
+        const menuItem = findVisible(
+          '[role="menuitem"], [role="menuitemradio"]',
+        );
+        if (menuItem) return menuItem;
 
-      const controls = clickable.getAttribute("aria-controls");
-      if (controls) {
-        const controlled = document.getElementById(controls);
-        if (controlled && isVisible(controlled)) return controlled;
-      }
+        const controls = clickable.getAttribute("aria-controls");
+        if (controls) {
+          const controlled = document.getElementById(controls);
+          if (controlled && isVisible(controlled)) return controlled;
+        }
 
-      return null;
-    }, 2500, 100);
+        return null;
+      },
+      2500,
+      100,
+    );
 
     return Boolean(opened);
   }
 
   function getOpenMenuRoots() {
-    return visibleElements(SELECTORS.menuRoot).filter(root => {
+    return visibleElements(SELECTORS.menuRoot).filter((root) => {
       const text = normalizedText(root);
-      return text || queryAll('[role="menuitem"], [role="menuitemradio"], button, [role="button"]', root).length;
+      return (
+        text ||
+        queryAll(
+          '[role="menuitem"], [role="menuitemradio"], button, [role="button"]',
+          root,
+        ).length
+      );
     });
   }
 
@@ -500,19 +572,33 @@ console.log("Current URL:", window.location.href);
     const roots = getOpenMenuRoots();
 
     for (const root of roots) {
-      const exact = findVisibleByText(SELECTORS.menuItem, actionConfig.menuRegex, root);
+      const exact = findVisibleByText(
+        SELECTORS.menuItem,
+        actionConfig.menuRegex,
+        root,
+      );
       if (exact) return exact;
     }
 
     for (const root of roots) {
-      const loose = findVisibleByText(SELECTORS.menuItem, actionConfig.looseMenuRegex, root);
+      const loose = findVisibleByText(
+        SELECTORS.menuItem,
+        actionConfig.looseMenuRegex,
+        root,
+      );
       if (loose) return loose;
     }
 
-    const exactGlobal = findVisibleByText('[role="menuitem"], [role="menuitemradio"]', actionConfig.menuRegex);
+    const exactGlobal = findVisibleByText(
+      '[role="menuitem"], [role="menuitemradio"]',
+      actionConfig.menuRegex,
+    );
     if (exactGlobal) return exactGlobal;
 
-    return findVisibleByText('[role="menuitem"], [role="menuitemradio"]', actionConfig.looseMenuRegex);
+    return findVisibleByText(
+      '[role="menuitem"], [role="menuitemradio"]',
+      actionConfig.looseMenuRegex,
+    );
   }
 
   function ancestorHasText(el, regex, maxDepth = 8) {
@@ -535,14 +621,16 @@ console.log("Current URL:", window.location.href);
         '[aria-modal="true"]',
         '[aria-label="Delete chat"]',
         '[aria-label="Delete conversation"]',
-        '[aria-labelledby]',
-        '[aria-describedby]'
-      ].join(',')
+        "[aria-labelledby]",
+        "[aria-describedby]",
+      ].join(","),
     );
 
-    return roots.filter(root => {
+    return roots.filter((root) => {
       const text = normalizedText(root);
-      return /delete chat|delete conversation|cannot be undone|delete your copy/i.test(text);
+      return /delete chat|delete conversation|cannot be undone|delete your copy/i.test(
+        text,
+      );
     });
   }
 
@@ -573,7 +661,8 @@ console.log("Current URL:", window.location.href);
   function findConfirmButton(actionConfig) {
     if (!actionConfig.confirmRegex) return null;
 
-    const contextRegex = /delete chat|delete conversation|cannot be undone|delete your copy/i;
+    const contextRegex =
+      /delete chat|delete conversation|cannot be undone|delete your copy/i;
 
     const candidates = visibleElements(
       [
@@ -582,17 +671,17 @@ console.log("Current URL:", window.location.href);
         '[aria-modal="true"] [role="button"]',
         '[role="button"][aria-label="Delete chat"]',
         '[role="button"][aria-label="Delete conversation"]',
-        'button'
-      ].join(',')
+        "button",
+      ].join(","),
     )
-      .filter(el => !textMatches(el, /^cancel$/i))
-      .filter(el => textMatches(el, actionConfig.confirmRegex))
-      .filter(el => ancestorHasText(el, contextRegex, 10));
+      .filter((el) => !textMatches(el, /^cancel$/i))
+      .filter((el) => textMatches(el, actionConfig.confirmRegex))
+      .filter((el) => ancestorHasText(el, contextRegex, 10));
 
     const topmost = candidates
-      .map(el => ({ original: el, clickable: getTopmostClickable(el) }))
+      .map((el) => ({ original: el, clickable: getTopmostClickable(el) }))
       .reverse()
-      .find(item => item.clickable);
+      .find((item) => item.clickable);
 
     if (topmost) return topmost.clickable;
 
@@ -600,8 +689,8 @@ console.log("Current URL:", window.location.href);
 
     for (const root of roots) {
       const exact = visibleElements(SELECTORS.confirmButtonCandidate, root)
-        .filter(el => !textMatches(el, /^cancel$/i))
-        .find(el => textMatches(el, actionConfig.confirmRegex));
+        .filter((el) => !textMatches(el, /^cancel$/i))
+        .find((el) => textMatches(el, actionConfig.confirmRegex));
 
       if (exact) return getTopmostClickable(exact) || exact;
     }
@@ -622,36 +711,43 @@ console.log("Current URL:", window.location.href);
       w: Math.round(rect.width),
       h: Math.round(rect.height),
       bottom: Math.round(rect.bottom),
-      right: Math.round(rect.right)
+      right: Math.round(rect.right),
     };
   }
 
   function isMarketplaceDetailView() {
     if (!/\/messages\/t\//i.test(location.pathname)) return false;
 
-    const hasMarketplaceBanner = visibleElements('a[href*="/marketplace/item/"], [role="button"][aria-label="More options"][aria-haspopup="dialog"]').some(el => {
+    const hasMarketplaceBanner = visibleElements(
+      'a[href*="/marketplace/item/"], [role="button"][aria-label="More options"][aria-haspopup="dialog"]',
+    ).some((el) => {
       const text = normalizedText(el);
       return /marketplace|sold|see details|more options/i.test(text);
     });
 
-    const hasConversationTitle = visibleElements('[aria-label^="Conversation titled"]').length > 0;
+    const hasConversationTitle =
+      visibleElements('[aria-label^="Conversation titled"]').length > 0;
 
     return hasMarketplaceBanner || hasConversationTitle;
   }
 
   function findMarketplaceHeaderMoreOptions() {
-    const candidates = visibleElements('[role="button"][aria-label="More options"][aria-haspopup="dialog"], button[aria-label="More options"]')
-      .filter(el => /^More options$/i.test(ownAccessibleText(el)))
-      .filter(el => {
+    const candidates = visibleElements(
+      '[role="button"][aria-label="More options"][aria-haspopup="dialog"], button[aria-label="More options"]',
+    )
+      .filter((el) => /^More options$/i.test(ownAccessibleText(el)))
+      .filter((el) => {
         const r = el.getBoundingClientRect();
         // Marketplace product banner button: below the chat title, above message history, in the main pane.
-        return r.width > 120 && r.height >= 24 && r.x > 300 && r.y > 110 && r.y < 280;
+        return (
+          r.width > 120 && r.height >= 24 && r.x > 300 && r.y > 110 && r.y < 280
+        );
       })
       .sort((a, b) => {
         const ar = a.getBoundingClientRect();
         const br = b.getBoundingClientRect();
         // Prefer the wide right-side product-banner More options button.
-        return (br.width - ar.width) || (ar.y - br.y);
+        return br.width - ar.width || ar.y - br.y;
       });
 
     return candidates[0] || null;
@@ -661,40 +757,65 @@ console.log("Current URL:", window.location.href);
     if (findMarketplaceHeaderMoreOptions()) return true;
 
     const marketplaceEntry = visibleElements(SELECTORS.marketplaceCandidate)
-      .filter(el => {
+      .filter((el) => {
         const r = el.getBoundingClientRect();
         if (r.x > 360 || r.y < 100) return false;
-        return /^Marketplace\b/i.test(ownAccessibleText(el)) || /^Marketplace\b/i.test(normalizedText(el));
+        return (
+          /^Marketplace\b/i.test(ownAccessibleText(el)) ||
+          /^Marketplace\b/i.test(normalizedText(el))
+        );
       })
-      .sort((a, b) => a.getBoundingClientRect().y - b.getBoundingClientRect().y)[0];
+      .sort(
+        (a, b) => a.getBoundingClientRect().y - b.getBoundingClientRect().y,
+      )[0];
 
     if (!marketplaceEntry) return false;
 
-    console.log("Reopening Marketplace folder:", normalizedText(marketplaceEntry));
+    console.log(
+      "Reopening Marketplace folder:",
+      normalizedText(marketplaceEntry),
+    );
     realClick(marketplaceEntry);
 
-    return Boolean(await waitFor(() => findMarketplaceHeaderMoreOptions(), 4000, 150));
+    return Boolean(
+      await waitFor(() => findMarketplaceHeaderMoreOptions(), 4000, 150),
+    );
   }
 
   async function openMarketplaceHeaderOptions() {
-    const moreButton = await waitFor(() => findMarketplaceHeaderMoreOptions(), 4000, 100);
+    const moreButton = await waitFor(
+      () => findMarketplaceHeaderMoreOptions(),
+      4000,
+      100,
+    );
     if (!moreButton) return null;
 
     console.log("Opening Marketplace header More options:", {
       text: normalizedText(moreButton),
       ariaLabel: moreButton.getAttribute("aria-label"),
-      rect: rectOf(moreButton)
+      rect: rectOf(moreButton),
     });
 
     realClick(moreButton);
 
-    const opened = await waitFor(() => {
-      const roots = getOpenMenuRoots();
-      const usefulRoot = roots.find(root => /delete|archive|report|block|conversation|chat/i.test(normalizedText(root)));
-      if (usefulRoot) return usefulRoot;
+    const opened = await waitFor(
+      () => {
+        const roots = getOpenMenuRoots();
+        const usefulRoot = roots.find((root) =>
+          /delete|archive|report|block|conversation|chat/i.test(
+            normalizedText(root),
+          ),
+        );
+        if (usefulRoot) return usefulRoot;
 
-      return findVisibleByText('[role="button"], button, [role="menuitem"]', /\b(delete|archive|report|block)\b/i);
-    }, 4000, 100);
+        return findVisibleByText(
+          '[role="button"], button, [role="menuitem"]',
+          /\b(delete|archive|report|block)\b/i,
+        );
+      },
+      4000,
+      100,
+    );
 
     return opened;
   }
@@ -705,55 +826,106 @@ console.log("Current URL:", window.location.href);
       if (!reopened) return { status: "empty" };
     }
 
-    const title = visibleElements('[aria-label^="Conversation titled"]').map(normalizedText)[0] || "current Marketplace conversation";
-    showStatus(`${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Opening Marketplace options`);
+    const title =
+      visibleElements('[aria-label^="Conversation titled"]').map(
+        normalizedText,
+      )[0] || "current Marketplace conversation";
+    showStatus(
+      `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Opening Marketplace options`,
+    );
 
     const menuOpened = await openMarketplaceHeaderOptions();
     if (!menuOpened) {
       console.warn("Marketplace header More options could not be opened.");
-      return { status: "skipped", reason: "marketplace_header_menu_not_opened", threadLabel: title };
+      return {
+        status: "skipped",
+        reason: "marketplace_header_menu_not_opened",
+        threadLabel: title,
+      };
     }
 
-    const actionItem = await waitFor(() => findActionMenuItem(actionConfig), 4000, 100);
+    const actionItem = await waitFor(
+      () => findActionMenuItem(actionConfig),
+      4000,
+      100,
+    );
     if (!actionItem) {
-      console.warn(`${actionConfig.label} item not found in Marketplace header options.`);
+      console.warn(
+        `${actionConfig.label} item not found in Marketplace header options.`,
+      );
       pressEscape();
       await sleep(300);
-      return { status: "skipped", reason: "marketplace_delete_item_missing", threadLabel: title };
+      return {
+        status: "skipped",
+        reason: "marketplace_delete_item_missing",
+        threadLabel: title,
+      };
     }
 
-    console.log(`Clicking Marketplace ${actionConfig.label} item:`, normalizedText(actionItem));
-    showStatus(`${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Clicking ${normalizedText(actionItem) || actionConfig.label}`);
+    console.log(
+      `Clicking Marketplace ${actionConfig.label} item:`,
+      normalizedText(actionItem),
+    );
+    showStatus(
+      `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Clicking ${normalizedText(actionItem) || actionConfig.label}`,
+    );
     realClick(actionItem);
 
     if (actionConfig.requiresConfirm) {
-      const confirmButton = await waitFor(() => findConfirmButton(actionConfig), 10000, 100);
+      const confirmButton = await waitFor(
+        () => findConfirmButton(actionConfig),
+        10000,
+        100,
+      );
 
       if (!confirmButton) {
         console.warn("Marketplace confirm button not found.");
         pressEscape();
         await sleep(300);
-        return { status: "skipped", reason: "marketplace_confirm_missing", threadLabel: title };
+        return {
+          status: "skipped",
+          reason: "marketplace_confirm_missing",
+          threadLabel: title,
+        };
       }
 
-      console.log("Confirming Marketplace delete:", normalizedText(confirmButton));
-      showStatus(`${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Confirming ${normalizedText(confirmButton)}`);
+      console.log(
+        "Confirming Marketplace delete:",
+        normalizedText(confirmButton),
+      );
+      showStatus(
+        `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Confirming ${normalizedText(confirmButton)}`,
+      );
       realClick(confirmButton);
 
-      const closed = await waitFor(() => !confirmationStillOpen(actionConfig), 5000, 150);
+      const closed = await waitFor(
+        () => !confirmationStillOpen(actionConfig),
+        5000,
+        150,
+      );
       if (!closed) {
         const retryButton = findConfirmButton(actionConfig);
         if (retryButton) {
-          console.warn("Marketplace confirmation still open; retrying topmost confirm button.");
+          console.warn(
+            "Marketplace confirmation still open; retrying topmost confirm button.",
+          );
           realClick(retryButton);
           await sleep(800);
         }
       }
 
-      const finalClosed = await waitFor(() => !confirmationStillOpen(actionConfig), 5000, 150);
+      const finalClosed = await waitFor(
+        () => !confirmationStillOpen(actionConfig),
+        5000,
+        150,
+      );
       if (!finalClosed) {
         console.warn("Marketplace confirmation did not close after retry.");
-        return { status: "skipped", reason: "marketplace_confirm_not_closed", threadLabel: title };
+        return {
+          status: "skipped",
+          reason: "marketplace_confirm_not_closed",
+          threadLabel: title,
+        };
       }
     }
 
@@ -762,17 +934,25 @@ console.log("Current URL:", window.location.href);
     send(actionConfig.progressAction, {
       mode: activeMode,
       count: processedCount,
-      threadLabel: title
+      threadLabel: title,
     });
 
     try {
       const stored = await chrome.storage.local.get(["trialsFast"]);
-      await chrome.storage.local.set({ trialsFast: (stored.trialsFast || 0) + 1 });
+      await chrome.storage.local.set({
+        trialsFast: (stored.trialsFast || 0) + 1,
+      });
     } catch (err) {
       console.debug("Could not update trialsFast:", err);
     }
 
-    await waitFor(() => findMarketplaceHeaderMoreOptions() || !/\/messages\/t\//i.test(location.pathname), 4000, 200);
+    await waitFor(
+      () =>
+        findMarketplaceHeaderMoreOptions() ||
+        !/\/messages\/t\//i.test(location.pathname),
+      4000,
+      200,
+    );
     await actionDelay();
 
     // If Facebook drops us back to the Marketplace folder or a blank state, reopen the next current conversation.
@@ -789,7 +969,8 @@ console.log("Current URL:", window.location.href);
 
     if (!target) {
       if (activeMode === "deleteBuySell") {
-        const marketplaceResult = await performCurrentMarketplaceConversationDelete(actionConfig);
+        const marketplaceResult =
+          await performCurrentMarketplaceConversationDelete(actionConfig);
         if (marketplaceResult.status !== "empty") return marketplaceResult;
       }
 
@@ -798,7 +979,9 @@ console.log("Current URL:", window.location.href);
 
     const threadLabel = target.label || "Unknown thread";
     console.log(`Opening thread menu: ${threadLabel}`);
-    showStatus(`${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Opening ${threadLabel.replace(/^More options for\s*/i, "")}`);
+    showStatus(
+      `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Opening ${threadLabel.replace(/^More options for\s*/i, "")}`,
+    );
 
     const menuOpened = await openThreadMenu(target.el);
     if (!menuOpened) {
@@ -809,39 +992,69 @@ console.log("Current URL:", window.location.href);
       return { status: "skipped", reason: "menu_not_opened", threadLabel };
     }
 
-    const actionItem = await waitFor(() => findActionMenuItem(actionConfig), 4000, 100);
+    const actionItem = await waitFor(
+      () => findActionMenuItem(actionConfig),
+      4000,
+      100,
+    );
     if (!actionItem) {
-      console.warn(`${actionConfig.label} menu item not found for:`, threadLabel);
+      console.warn(
+        `${actionConfig.label} menu item not found for:`,
+        threadLabel,
+      );
       skipLabels.add(threadLabel);
       pressEscape();
       await sleep(300);
       return { status: "skipped", reason: "menu_item_missing", threadLabel };
     }
 
-    console.log(`Clicking ${actionConfig.label} item:`, normalizedText(actionItem));
+    console.log(
+      `Clicking ${actionConfig.label} item:`,
+      normalizedText(actionItem),
+    );
     realClick(actionItem);
 
     if (actionConfig.requiresConfirm) {
-      showStatus(`${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Waiting for confirmation`);
+      showStatus(
+        `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Waiting for confirmation`,
+      );
 
-      const confirmButton = await waitFor(() => findConfirmButton(actionConfig), 10000, 100);
+      const confirmButton = await waitFor(
+        () => findConfirmButton(actionConfig),
+        10000,
+        100,
+      );
 
       if (!confirmButton) {
-        console.warn(`Confirm button not found for ${actionConfig.label}:`, threadLabel);
+        console.warn(
+          `Confirm button not found for ${actionConfig.label}:`,
+          threadLabel,
+        );
         skipLabels.add(threadLabel);
         pressEscape();
         await sleep(300);
         return { status: "skipped", reason: "confirm_missing", threadLabel };
       }
 
-      showStatus(`${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Confirming ${normalizedText(confirmButton)}`);
-      console.log(`Confirming ${actionConfig.label}:`, normalizedText(confirmButton));
+      showStatus(
+        `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Confirming ${normalizedText(confirmButton)}`,
+      );
+      console.log(
+        `Confirming ${actionConfig.label}:`,
+        normalizedText(confirmButton),
+      );
       realClick(confirmButton);
 
-      const closed = await waitFor(() => !confirmationStillOpen(actionConfig), 3500, 150);
+      const closed = await waitFor(
+        () => !confirmationStillOpen(actionConfig),
+        3500,
+        150,
+      );
 
       if (!closed) {
-        console.warn("Confirmation dialog still appears open; retrying confirm click once.");
+        console.warn(
+          "Confirmation dialog still appears open; retrying confirm click once.",
+        );
         const retryButton = findConfirmButton(actionConfig);
         if (retryButton) {
           realClick(retryButton);
@@ -852,9 +1065,16 @@ console.log("Current URL:", window.location.href);
         }
       }
 
-      const finalClosed = await waitFor(() => !confirmationStillOpen(actionConfig), 3500, 150);
+      const finalClosed = await waitFor(
+        () => !confirmationStillOpen(actionConfig),
+        3500,
+        150,
+      );
       if (!finalClosed) {
-        console.warn(`Confirmation did not close for ${actionConfig.label}:`, threadLabel);
+        console.warn(
+          `Confirmation did not close for ${actionConfig.label}:`,
+          threadLabel,
+        );
         skipLabels.add(threadLabel);
         return { status: "skipped", reason: "confirm_not_closed", threadLabel };
       }
@@ -865,12 +1085,14 @@ console.log("Current URL:", window.location.href);
     send(actionConfig.progressAction, {
       mode: activeMode,
       count: processedCount,
-      threadLabel
+      threadLabel,
     });
 
     try {
       const stored = await chrome.storage.local.get(["trialsFast"]);
-      await chrome.storage.local.set({ trialsFast: (stored.trialsFast || 0) + 1 });
+      await chrome.storage.local.set({
+        trialsFast: (stored.trialsFast || 0) + 1,
+      });
     } catch (err) {
       console.debug("Could not update trialsFast:", err);
     }
@@ -888,7 +1110,7 @@ console.log("Current URL:", window.location.href);
     if (!isMessengerPage()) {
       send("automationError", {
         mode,
-        message: "Open Facebook Messages or Messenger first."
+        message: "Open Facebook Messages or Messenger first.",
       });
       return;
     }
@@ -912,16 +1134,21 @@ console.log("Current URL:", window.location.href);
 
     try {
       while (shouldRun) {
-        const result = await performOneThreadAction(actionConfig, skippedLabels);
+        const result = await performOneThreadAction(
+          actionConfig,
+          skippedLabels,
+        );
 
         if (result.status === "empty") {
           console.log(actionConfig.emptyMessage);
           send(actionConfig.completeAction, {
             mode,
             count: processedCount,
-            message: actionConfig.emptyMessage
+            message: actionConfig.emptyMessage,
           });
-          showStatus(`${actionConfig.emptyMessage}. Total: ${formatNumber(processedCount)}`);
+          showStatus(
+            `${actionConfig.emptyMessage}. Total: ${formatNumber(processedCount)}`,
+          );
           await sleep(1200);
           break;
         }
@@ -931,17 +1158,21 @@ console.log("Current URL:", window.location.href);
             mode,
             count: processedCount,
             reason: result.reason,
-            threadLabel: result.threadLabel
+            threadLabel: result.threadLabel,
           });
 
-          if (skippedLabels.size >= Math.max(1, getThreadMenuButtons().length)) {
+          if (
+            skippedLabels.size >= Math.max(1, getThreadMenuButtons().length)
+          ) {
             console.warn("All visible thread menus were skipped; stopping.");
             send(actionConfig.completeAction, {
               mode,
               count: processedCount,
-              message: actionConfig.emptyMessage
+              message: actionConfig.emptyMessage,
             });
-            showStatus(`${actionConfig.emptyMessage}. Total: ${formatNumber(processedCount)}`);
+            showStatus(
+              `${actionConfig.emptyMessage}. Total: ${formatNumber(processedCount)}`,
+            );
             await sleep(1200);
             break;
           }
@@ -952,9 +1183,11 @@ console.log("Current URL:", window.location.href);
       send(actionConfig.errorAction, {
         mode,
         count: processedCount,
-        message: err && err.message ? err.message : String(err)
+        message: err && err.message ? err.message : String(err),
       });
-      showStatus(`${actionConfig.label} failed: ${err && err.message ? err.message : err}`);
+      showStatus(
+        `${actionConfig.label} failed: ${err && err.message ? err.message : err}`,
+      );
       await sleep(1500);
     } finally {
       shouldRun = false;
@@ -973,16 +1206,27 @@ console.log("Current URL:", window.location.href);
     send("BuySellLoadingWait");
 
     try {
-      const candidate = await waitFor(() => {
-        const exact = visibleElements(SELECTORS.marketplaceCandidate).find(el => {
-          const text = normalizedText(el);
-          return /^Marketplace\b/i.test(text) || /^Marketplace\s*[·•]/i.test(text);
-        });
+      const candidate = await waitFor(
+        () => {
+          const exact = visibleElements(SELECTORS.marketplaceCandidate).find(
+            (el) => {
+              const text = normalizedText(el);
+              return (
+                /^Marketplace\b/i.test(text) ||
+                /^Marketplace\s*[·•]/i.test(text)
+              );
+            },
+          );
 
-        if (exact) return exact;
+          if (exact) return exact;
 
-        return visibleElements(SELECTORS.marketplaceCandidate).find(el => /\bMarketplace\b/i.test(normalizedText(el)));
-      }, 5000, 100);
+          return visibleElements(SELECTORS.marketplaceCandidate).find((el) =>
+            /\bMarketplace\b/i.test(normalizedText(el)),
+          );
+        },
+        5000,
+        100,
+      );
 
       if (!candidate) {
         console.warn("Marketplace messages entry not found.");
@@ -996,7 +1240,9 @@ console.log("Current URL:", window.location.href);
       send("loadedCompleteBuySell");
     } catch (err) {
       console.error("Could not open Marketplace messages:", err);
-      send("clickError", { error: err && err.message ? err.message : String(err) });
+      send("clickError", {
+        error: err && err.message ? err.message : String(err),
+      });
       send("noBuySell");
     }
   }
@@ -1008,7 +1254,11 @@ console.log("Current URL:", window.location.href);
     }
 
     try {
-      const settings = await waitFor(() => findVisible(SELECTORS.settingsButton), 5000, 100);
+      const settings = await waitFor(
+        () => findVisible(SELECTORS.settingsButton),
+        5000,
+        100,
+      );
       if (!settings) {
         console.warn("Settings, help and more button not found.");
         send("noArchivedMsgs", { message: "Settings menu not found." });
@@ -1018,19 +1268,37 @@ console.log("Current URL:", window.location.href);
       console.log("Opening settings menu");
       realClick(settings);
 
-      const archivedItem = await waitFor(() => {
-        const roots = getOpenMenuRoots();
-        for (const root of roots) {
-          const item = findVisibleByText(SELECTORS.menuItem, /^(archived chats|archived)$/i, root) ||
-            findVisibleByText(SELECTORS.menuItem, /\barchived chats\b/i, root);
-          if (item) return item;
-        }
-        return findVisibleByText('[role="menuitem"], [role="menuitemradio"]', /\barchived chats\b/i);
-      }, 5000, 100);
+      const archivedItem = await waitFor(
+        () => {
+          const roots = getOpenMenuRoots();
+          for (const root of roots) {
+            const item =
+              findVisibleByText(
+                SELECTORS.menuItem,
+                /^(archived chats|archived)$/i,
+                root,
+              ) ||
+              findVisibleByText(
+                SELECTORS.menuItem,
+                /\barchived chats\b/i,
+                root,
+              );
+            if (item) return item;
+          }
+          return findVisibleByText(
+            '[role="menuitem"], [role="menuitemradio"]',
+            /\barchived chats\b/i,
+          );
+        },
+        5000,
+        100,
+      );
 
       if (!archivedItem) {
         console.warn("Archived chats menu item not found.");
-        send("noArchivedMsgs", { message: "Archived chats menu item not found." });
+        send("noArchivedMsgs", {
+          message: "Archived chats menu item not found.",
+        });
         pressEscape();
         return;
       }
@@ -1041,7 +1309,9 @@ console.log("Current URL:", window.location.href);
       send("loadedCompleteArchived");
     } catch (err) {
       console.error("Could not open Archived chats:", err);
-      send("noArchivedMsgs", { message: err && err.message ? err.message : String(err) });
+      send("noArchivedMsgs", {
+        message: err && err.message ? err.message : String(err),
+      });
     }
   }
 
@@ -1095,7 +1365,8 @@ console.log("Current URL:", window.location.href);
       }
 
       default:
-        sendResponse && sendResponse({ ok: false, message: `Unknown action: ${action}` });
+        sendResponse &&
+          sendResponse({ ok: false, message: `Unknown action: ${action}` });
         return false;
     }
   });
@@ -1110,14 +1381,21 @@ console.log("Current URL:", window.location.href);
       settingsButtonFound: Boolean(findVisible(SELECTORS.settingsButton)),
       visibleDialogs: visibleElements(SELECTORS.dialog).length,
       visibleConfirmationRoots: getConfirmationRoots().length,
-      visibleConfirmButtons: ACTIONS.delete ? visibleElements(SELECTORS.confirmButtonCandidate).filter(el => ACTIONS.delete.confirmRegex.test(normalizedText(el))).map(el => normalizedText(el)).slice(0, 10) : [],
+      visibleConfirmButtons: ACTIONS.delete
+        ? visibleElements(SELECTORS.confirmButtonCandidate)
+            .filter((el) =>
+              ACTIONS.delete.confirmRegex.test(normalizedText(el)),
+            )
+            .map((el) => normalizedText(el))
+            .slice(0, 10)
+        : [],
       visibleMenus: visibleElements('[role="menu"]').length,
       buttons: buttons.slice(0, 40).map((item, index) => ({
         index,
         label: item.label,
         text: normalizedText(item.el),
-        top: Math.round(item.top)
-      }))
+        top: Math.round(item.top),
+      })),
     };
 
     console.table(snapshot.buttons);
@@ -1129,6 +1407,6 @@ console.log("Current URL:", window.location.href);
   window.FBChatsCleanerDebug = {
     selectors: SELECTORS,
     snapshot: getDebugSnapshot,
-    stop: stopAutomation
+    stop: stopAutomation,
   };
 })();

@@ -19,15 +19,15 @@
 
   function ensureContainer() {
     if (container && document.body.contains(container)) return container;
-    container = document.createElement('div');
-    container.className = 'ct-container';
+    container = document.createElement("div");
+    container.className = "ct-container";
     document.body.appendChild(container);
     return container;
   }
 
   function clear() {
     var c = ensureContainer();
-    var toasts = c.querySelectorAll('.ct-toast');
+    var toasts = c.querySelectorAll(".ct-toast");
     toasts.forEach(function (t) {
       removeToast(t);
     });
@@ -35,9 +35,9 @@
 
   function removeToast(toast) {
     if (!toast || toast.dataset.removing) return;
-    toast.dataset.removing = 'true';
-    toast.classList.remove('ct-in');
-    toast.classList.add('ct-out');
+    toast.dataset.removing = "true";
+    toast.classList.remove("ct-in");
+    toast.classList.add("ct-out");
     setTimeout(function () {
       if (toast.parentNode) toast.parentNode.removeChild(toast);
     }, 280);
@@ -48,36 +48,36 @@
     var opts = window.toastr.options || {};
     var timeOut = parseInt(opts.timeOut, 10) || 4000;
 
-    var toast = document.createElement('div');
-    toast.className = 'ct-toast ct-' + type;
+    var toast = document.createElement("div");
+    toast.className = "ct-toast ct-" + type;
 
-    var bar = document.createElement('div');
-    bar.className = 'ct-progress';
-    bar.style.animationDuration = timeOut + 'ms';
+    var bar = document.createElement("div");
+    bar.className = "ct-progress";
+    bar.style.animationDuration = timeOut + "ms";
 
-    var iconWrap = document.createElement('div');
-    iconWrap.className = 'ct-icon';
+    var iconWrap = document.createElement("div");
+    iconWrap.className = "ct-icon";
     iconWrap.innerHTML = ICONS[type] || ICONS.info;
 
-    var body = document.createElement('div');
-    body.className = 'ct-body';
+    var body = document.createElement("div");
+    body.className = "ct-body";
 
     if (title) {
-      var titleEl = document.createElement('div');
-      titleEl.className = 'ct-title';
+      var titleEl = document.createElement("div");
+      titleEl.className = "ct-title";
       titleEl.textContent = title;
       body.appendChild(titleEl);
     }
 
-    var msgEl = document.createElement('div');
-    msgEl.className = 'ct-message';
-    msgEl.textContent = message || '';
+    var msgEl = document.createElement("div");
+    msgEl.className = "ct-message";
+    msgEl.textContent = message || "";
     body.appendChild(msgEl);
 
-    var closeBtn = document.createElement('button');
-    closeBtn.className = 'ct-close';
+    var closeBtn = document.createElement("button");
+    closeBtn.className = "ct-close";
     closeBtn.innerHTML = '<i class="fas fa-xmark"></i>';
-    closeBtn.addEventListener('click', function () {
+    closeBtn.addEventListener("click", function () {
       removeToast(toast);
     });
 
@@ -90,19 +90,19 @@
 
     // trigger enter animation on next frame
     requestAnimationFrame(function () {
-      toast.classList.add('ct-in');
+      toast.classList.add("ct-in");
     });
 
     var autoTimer = setTimeout(function () {
       removeToast(toast);
     }, timeOut);
 
-    toast.addEventListener('mouseenter', function () {
+    toast.addEventListener("mouseenter", function () {
       clearTimeout(autoTimer);
-      bar.style.animationPlayState = 'paused';
+      bar.style.animationPlayState = "paused";
     });
-    toast.addEventListener('mouseleave', function () {
-      bar.style.animationPlayState = 'running';
+    toast.addEventListener("mouseleave", function () {
+      bar.style.animationPlayState = "running";
       autoTimer = setTimeout(function () {
         removeToast(toast);
       }, 1200);
@@ -112,13 +112,13 @@
   window.toastr = {
     options: {},
     success: function (message, title) {
-      show('success', message, title);
+      show("success", message, title);
     },
     info: function (message, title) {
-      show('info', message, title);
+      show("info", message, title);
     },
     error: function (message, title) {
-      show('error', message, title);
+      show("error", message, title);
     },
     clear: clear,
   };

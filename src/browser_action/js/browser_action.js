@@ -34,7 +34,7 @@ app.controller("ctrl", function ($scope) {
     { id: "normal", name: "Normal", icon: "🚶", locked: false },
     { id: "fast", name: "Fast", icon: "⚡", locked: false },
     { id: "veryfast", name: "Very Fast", icon: "🚀", locked: false },
-    { id: "ultra", name: "Ultra", icon: "🔥", locked: false }
+    { id: "ultra", name: "Ultra", icon: "🔥", locked: false },
   ];
 
   $scope.selectedSpeed = "fast";
@@ -54,7 +54,7 @@ app.controller("ctrl", function ($scope) {
     showEasing: "swing",
     hideEasing: "linear",
     showMethod: "fadeIn",
-    hideMethod: "fadeOut"
+    hideMethod: "fadeOut",
   };
 
   function safeApply(fn) {
@@ -81,25 +81,32 @@ app.controller("ctrl", function ($scope) {
         return;
       }
 
-      chrome.tabs.sendMessage(tab.id, Object.assign({ action: action }, payload || {}), function (response) {
-        if (chrome.runtime.lastError) {
-          safeApply(function () {
-            resetProcessingFlags();
-            toastr.error(
-              "Content script is not available on this tab. Reload Facebook Messages and try again.",
-              "Extension not injected"
-            );
-          });
-          return;
-        }
+      chrome.tabs.sendMessage(
+        tab.id,
+        Object.assign({ action: action }, payload || {}),
+        function (response) {
+          if (chrome.runtime.lastError) {
+            safeApply(function () {
+              resetProcessingFlags();
+              toastr.error(
+                "Content script is not available on this tab. Reload Facebook Messages and try again.",
+                "Extension not injected",
+              );
+            });
+            return;
+          }
 
-        if (response && response.ok === false) {
-          safeApply(function () {
-            resetProcessingFlags();
-            toastr.warning(response.message || "Action was not accepted by the content script.");
-          });
-        }
-      });
+          if (response && response.ok === false) {
+            safeApply(function () {
+              resetProcessingFlags();
+              toastr.warning(
+                response.message ||
+                  "Action was not accepted by the content script.",
+              );
+            });
+          }
+        },
+      );
     });
   }
 
@@ -129,15 +136,19 @@ app.controller("ctrl", function ($scope) {
   // ---------------------------------------------------------------------------
   // Theme and speed settings
   // ---------------------------------------------------------------------------
-  chrome.storage.local.get(["darkMode", "speedLevel", "trialsFast", "license_key"], function (result) {
-    safeApply(function () {
-      $scope.darkMode = !!result.darkMode;
-      $scope.selectedSpeed = result.speedLevel || "fast";
-      $scope.trialsFast = typeof result.trialsFast === "number" ? result.trialsFast : 999999;
-      $scope.license = true;
-      $scope.trialsLimitComplete = false;
-    });
-  });
+  chrome.storage.local.get(
+    ["darkMode", "speedLevel", "trialsFast", "license_key"],
+    function (result) {
+      safeApply(function () {
+        $scope.darkMode = !!result.darkMode;
+        $scope.selectedSpeed = result.speedLevel || "fast";
+        $scope.trialsFast =
+          typeof result.trialsFast === "number" ? result.trialsFast : 999999;
+        $scope.license = true;
+        $scope.trialsLimitComplete = false;
+      });
+    },
+  );
 
   $scope.toggleTheme = function () {
     $scope.darkMode = !$scope.darkMode;
@@ -164,8 +175,10 @@ app.controller("ctrl", function ($scope) {
   // Page detection/navigation
   // ---------------------------------------------------------------------------
   $scope.checkUrl = function (url) {
-    return /facebook\.com\/(messages|latest\/inbox)/i.test(url || "") ||
-      /messenger\.com/i.test(url || "");
+    return (
+      /facebook\.com\/(messages|latest\/inbox)/i.test(url || "") ||
+      /messenger\.com/i.test(url || "")
+    );
   };
 
   $scope.goToFBP = function () {
@@ -299,13 +312,17 @@ app.controller("ctrl", function ($scope) {
         case "noMessagesToDlt":
           markComplete("delete");
           toastr.clear();
-          toastr.success(request.message || "No Messages Found / All Deleted Successfully");
+          toastr.success(
+            request.message || "No Messages Found / All Deleted Successfully",
+          );
           break;
 
         case "NoMsgsToArchv":
           markComplete("archive");
           toastr.clear();
-          toastr.success(request.message || "No Messages Found / All Archived Successfully");
+          toastr.success(
+            request.message || "No Messages Found / All Archived Successfully",
+          );
           break;
 
         case "BuySellLoadingWait":
@@ -338,7 +355,9 @@ app.controller("ctrl", function ($scope) {
         case "noArchivedMsgs":
           $scope.archivedLoadingWait = false;
           markComplete("unarchive");
-          toastr.info(request.message || "No Archived Messages / All Unarchived.");
+          toastr.info(
+            request.message || "No Archived Messages / All Unarchived.",
+          );
           break;
 
         case "automationStopped":
@@ -357,7 +376,10 @@ app.controller("ctrl", function ($scope) {
         case "unarchiveError":
         case "clickError":
           resetProcessingFlags();
-          toastr.error(request.message || request.error || "Automation failed.", "Error");
+          toastr.error(
+            request.message || request.error || "Automation failed.",
+            "Error",
+          );
           break;
       }
     });
