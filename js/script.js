@@ -422,7 +422,7 @@ if (typeof document !== "undefined" && document.documentElement) {
       ].join("; ");
 
       const title = document.createElement("div");
-      title.textContent = "🗑️ Delete Facebook Messages Fast 2026";
+      title.textContent = "Delete Facebook Messages";
       title.style.cssText =
         "display:flex;align-items:center;font-size:16px;font-weight:normal;gap:8px;white-space:nowrap";
 
@@ -433,7 +433,7 @@ if (typeof document !== "undefined" && document.documentElement) {
 
       const stop = document.createElement("button");
       stop.id = "stopDeletionButton";
-      stop.textContent = "✋ Stop";
+      stop.textContent = "Stop";
       stop.style.cssText = [
         "background:#ff4757",
         "border:none",
@@ -509,11 +509,11 @@ if (typeof document !== "undefined" && document.documentElement) {
     }
     const dataId = row.getAttribute("data-thread-id") || row.id;
     if (dataId) return `id:${dataId}`;
-    if (!row.__dfmf_thread_id) {
+    if (!row.__thread_id) {
       threadIdentitySequence++;
-      row.__dfmf_thread_id = `dfmf-thread-${threadIdentitySequence}`;
+      row.__thread_id = `thread-${threadIdentitySequence}`;
     }
-    return row.__dfmf_thread_id;
+    return row.__thread_id;
   }
 
   // ---------------------------------------------------------------------------
@@ -1065,14 +1065,6 @@ if (typeof document !== "undefined" && document.documentElement) {
       threadLabel: title,
     });
 
-    try {
-      const stored = await chrome.storage.local.get(["trialsFast"]);
-      await chrome.storage.local.set({
-        trialsFast: (stored.trialsFast || 0) + 1,
-      });
-    } catch (err) {
-      console.debug("Could not update trialsFast:", err);
-    }
 
     await actionDelay();
 
@@ -1230,14 +1222,6 @@ if (typeof document !== "undefined" && document.documentElement) {
       threadLabel,
     });
 
-    try {
-      const stored = await chrome.storage.local.get(["trialsFast"]);
-      await chrome.storage.local.set({
-        trialsFast: (stored.trialsFast || 0) + 1,
-      });
-    } catch (err) {
-      console.debug("Could not update trialsFast:", err);
-    }
 
     await actionDelay();
     return { status: "done", threadLabel };
