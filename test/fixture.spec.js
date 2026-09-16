@@ -407,23 +407,41 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     expect(menuClicks.length).toBe(1);
   });
 
-  test("17. Dry run changes zero fixture records", async ({ page }) => {
+  test("17. Dry run inspects multiple conversations, terminates cleanly, and modifies zero records", async ({ page }) => {
     const inboxBefore = await page.evaluate(() => window.MockMessenger.state.inbox.length);
 
-    await dispatchExtensionMessage(page, "deleteMsgs", { dryRun: true, maxActions: 2 });
+    // Launch dry run with maxActions: 3 (multiple inspections)
+    await dispatchExtensionMessage(page, "deleteMsgs", { dryRun: true, maxActions: 3 });
 
-    // Wait for skipped dry run signal
-    await page.waitForFunction(() =>
-      window._sentMessages.some(
-        (m) => m.action === "automationWarning" && m.reason === "dry_run_action_not_selected",
-      ),
+    // Wait for at least 3 dryRunProgress messages
+    await page.waitForFunction(() => {
+      const msgs = (window._sentMessages || []).filter((m) => m.action === "dryRunProgress");
+      return msgs.length >= 3;
+    });
+
+    // Wait until automation completely terminates and clears busy state
+    await page.waitForFunction(() => !window.FBChatsCleanerDebug.isBusy());
+
+    // Verify multiple distinct conversations were inspected without re-inspecting the same one
+    const dryRunEvents = await page.evaluate(() =>
+      window._sentMessages.filter((m) => m.action === "dryRunProgress"),
     );
+    expect(dryRunEvents.length).toBe(3);
 
+    const inspectedLabels = dryRunEvents.map((e) => e.threadLabel);
+    const uniqueLabels = new Set(inspectedLabels);
+    expect(uniqueLabels.size).toBe(3);
+
+    // Zero records changed
     const inboxAfter = await page.evaluate(() => window.MockMessenger.state.inbox.length);
     const deletedCount = await page.evaluate(() => window.MockMessenger.state.deletedCount);
+    const archivedCount = await page.evaluate(() => window.MockMessenger.state.archivedCount);
+    const unarchivedCount = await page.evaluate(() => window.MockMessenger.state.unarchivedCount);
 
     expect(inboxAfter).toBe(inboxBefore);
     expect(deletedCount).toBe(0);
+    expect(archivedCount).toBe(0);
+    expect(unarchivedCount).toBe(0);
   });
 
   test("18. Processing count matches actual completed operations", async ({ page }) => {
@@ -539,5 +557,102 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     }
     expect(navBlocked).toBe(true);
     await testPage.close();
+  });
+
+  test("23. Automation action limit defaults to unlimited (does not cap at 1)", async ({ page }) => {
+    // Normal production call does not pass maxActions. It should process beyond 1.
+    await dispatchExtensionMessage(page, "deleteMsgs");
+
+    // Wait until count reaches at least 2
+    await page.waitForFunction(() =>
+      window._sentMessages.some((m) => m.action === "deleteProgress" && m.count >= 2),
+    );
+
+    // Stop automation safely
+    await dispatchExtensionMessage(page, "stopAutomation");
+    await page.waitForFunction(() => !window.FBChatsCleanerDebug.isBusy());
+
+    const deleted = await page.evaluate(() => window.MockMessenger.state.deletedCount);
+    expect(deleted).toBeGreaterThanOrEqual(2);
+  });
+
+  test("24. Explicit developmentSafetyLimit caps automation to exactly 1 action", async ({ page }) => {
+    await dispatchExtensionMessage(page, "deleteMsgs", { developmentSafetyLimit: true });
+
+    // Wait for completion message
+    await page.waitForFunction(() =>
+      window._sentMessages.some((m) => m.action === "noMessagesToDlt" && m.count === 1),
+    );
+    await page.waitForFunction(() => !window.FBChatsCleanerDebug.isBusy());
+
+    const deleted = await page.evaluate(() => window.MockMessenger.state.deletedCount);
+    expect(deleted).toBe(1);
+  });
+
+  test("25. Marketplace routing ignores unrelated site-wide marketplace link in inbox", async ({ page }) => {
+    // Add a dummy global Facebook navbar link to the DOM
+    await page.evaluate(() => {
+      const link = document.createElement("a");
+      link.href = "https://www.facebook.com/marketplace/";
+      link.id = "global-fb-nav-marketplace";
+      link.textContent = "Marketplace (Shop)";
+      document.body.appendChild(link);
+    });
+
+    // Ensure we are in inbox
+    expect(await page.evaluate(() => window.MockMessenger.state.view)).toBe("inbox");
+
+    // On real Facebook page logic, isMarketplaceFolder should still return false
+    // because the global nav link is not an active Messenger folder or heading.
+    const isMarketplaceOnProductionLogic = await page.evaluate(() => {
+      delete document.documentElement.dataset.fbCleanerFixture;
+      const detected = window.FBChatsCleanerDebug.isMarketplaceFolder();
+      document.documentElement.dataset.fbCleanerFixture = "true";
+      return detected;
+    });
+
+    expect(isMarketplaceOnProductionLogic).toBe(false);
+
+    // Clean up
+    await page.evaluate(() => {
+      document.querySelector("#global-fb-nav-marketplace")?.remove();
+    });
+  });
+
+  test("26. Production manifest.json strictly matches Facebook and Messenger without localhost", async () => {
+    const manifestPath = path.resolve(__dirname, "../manifest.json");
+    const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+    const matches = manifest.content_scripts[0].matches;
+
+    expect(matches).toContain("https://*.facebook.com/*");
+    expect(matches).toContain("https://*.messenger.com/*");
+
+    const localhostMatches = matches.filter(
+      (m) => m.includes("localhost") || m.includes("127.0.0.1"),
+    );
+    expect(localhostMatches).toEqual([]);
+
+    // Ensure unused content script libraries are not injected
+    const jsFiles = manifest.content_scripts[0].js;
+    expect(jsFiles).not.toContain("js/jquery.min.js");
+    expect(jsFiles).not.toContain("js/sweetAlert.min.js");
+    expect(jsFiles).not.toContain("js/jquery-confirm.js");
+    expect(jsFiles).toContain("js/script.js");
+  });
+
+  test("27. Normalized fixture model is generated and consumed from captured structure", async () => {
+    const { extractModel } = require("./generate-fixture");
+    const capturedData = JSON.parse(
+      fs.readFileSync(path.resolve(__dirname, "fixtures/messenger-structure.json"), "utf8"),
+    );
+    const model = extractModel(capturedData);
+
+    expect(model.threadMenuButton).toBeDefined();
+    expect(model.threadMenuButton.role).toBe("button");
+    expect(model.threadMenuButton.labelPattern).toContain("{name}");
+    expect(model.menu).toBeDefined();
+    expect(model.menu.labels.delete).toBe("Delete chat");
+    expect(model.dialog).toBeDefined();
+    expect(model.dialog.labels.confirmDelete).toBe("Delete chat");
   });
 });

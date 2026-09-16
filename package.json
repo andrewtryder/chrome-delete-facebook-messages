@@ -5,7 +5,13 @@
     "test": "playwright test",
     "test:fixture": "playwright test test/fixture.spec.js",
     "serve:fixture": "node test/serve-fixture.js",
-    "serve:testfixture": "node test/serve-fixture.js"
+    "serve:testfixture": "node test/serve-fixture.js",
+    "manifest:dev": "node scripts/dev-manifest.js --dev",
+    "manifest:prod": "node scripts/dev-manifest.js --prod",
+    "manifest:check": "node scripts/dev-manifest.js --check",
+    "fixture:validate": "node test/update-fixture.js",
+    "fixture:generate": "node test/generate-fixture.js",
+    "fixture:update": "npm run fixture:validate && npm run fixture:generate"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1"
