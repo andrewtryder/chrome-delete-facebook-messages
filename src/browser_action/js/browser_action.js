@@ -1076,9 +1076,9 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     // Set manifest version dynamically in footer and about
     if (typeof chrome !== "undefined" && chrome.runtime && chrome.runtime.getManifest) {
       const manifest = chrome.runtime.getManifest();
-      const ver = manifest.version || "3.8.0";
-      if (els.footerVersion) els.footerVersion.textContent = `v${ver}`;
-      if (els.aboutVersion) els.aboutVersion.textContent = `Version ${ver}`;
+      const ver = (manifest && manifest.version) || "";
+      if (els.footerVersion && ver) els.footerVersion.textContent = `v${ver}`;
+      if (els.aboutVersion && ver) els.aboutVersion.textContent = `Version ${ver}`;
     }
 
     // Load saved preferences

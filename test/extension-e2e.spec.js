@@ -537,6 +537,9 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
   });
 
   test("17. Version displayed in About equals manifest version", async () => {
+    const manifest = JSON.parse(
+      fs.readFileSync(path.resolve(__dirname, "../manifest.json"), "utf8"),
+    );
     const popupPage = await context.newPage();
     await popupPage.goto(
       `chrome-extension://${extensionId}/src/browser_action/browser_action.html`,
@@ -546,7 +549,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
     await popupPage.locator('[data-testid="tab-about"]').click();
 
     const versionText = await popupPage.locator('[data-testid="about-version"]').textContent();
-    expect(versionText).toContain("3.8.0");
+    expect(versionText).toContain(manifest.version);
 
     await popupPage.close();
   });
