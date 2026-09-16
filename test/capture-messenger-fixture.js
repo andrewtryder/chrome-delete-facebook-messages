@@ -59,8 +59,31 @@
 
   const peopleMap = new Map();
   const marketplaceMap = new Map();
+  const idMap = new Map();
   let personCounter = 0;
   let marketplaceCounter = 0;
+  let idCounter = 0;
+
+  function normalizeIdToken(token) {
+    const trimmed = String(token || "").trim();
+    if (!trimmed) return "";
+    if (/^(mw-inbox-settings-menu|thread-list-menu-buttons|marketplace-entry|inbox-entry|marketplace-banner)$/i.test(trimmed)) {
+      return trimmed;
+    }
+    if (idMap.has(trimmed)) {
+      return idMap.get(trimmed);
+    }
+    idCounter++;
+    const generated = `generated-id-${String(idCounter).padStart(3, "0")}`;
+    idMap.set(trimmed, generated);
+    return generated;
+  }
+
+  function normalizeIdList(value) {
+    if (!value) return "";
+    const tokens = String(value).trim().split(/\s+/);
+    return tokens.map(normalizeIdToken).join(" ");
+  }
 
   function sanitizeString(value) {
     const text = String(value || "")
@@ -158,12 +181,14 @@
       return /^-?\d+$/.test(val) ? val : "[redacted]";
     }
     if (
+      name === "id" ||
       name === "aria-controls" ||
       name === "aria-labelledby" ||
       name === "aria-describedby"
     ) {
       const hasSuspicious = SUSPICIOUS_PATTERNS.some((p) => p.test(val));
-      return hasSuspicious ? "[redacted]" : val;
+      if (hasSuspicious) return "[redacted]";
+      return normalizeIdList(val);
     }
     return sanitizeString(val);
   }
@@ -385,6 +410,49 @@
     return data;
   }
 
+  function normalizeStructureIds(root) {
+    const localIdMap = new Map();
+    let localIdCounter = 0;
+
+    function mapToken(token) {
+      const t = String(token || "").trim();
+      if (!t) return "";
+      if (/^(mw-inbox-settings-menu|thread-list-menu-buttons|marketplace-entry|inbox-entry|marketplace-banner)$/i.test(t)) {
+        return t;
+      }
+      if (localIdMap.has(t)) return localIdMap.get(t);
+      localIdCounter++;
+      const gen = `generated-id-${String(localIdCounter).padStart(3, "0")}`;
+      localIdMap.set(t, gen);
+      return gen;
+    }
+
+    function mapTokens(val) {
+      if (!val || typeof val !== "string") return val;
+      return val.trim().split(/\s+/).map(mapToken).join(" ");
+    }
+
+    function walk(node) {
+      if (!node || typeof node !== "object") return;
+      if (node.attrs) {
+        ["id", "aria-controls", "aria-labelledby", "aria-describedby"].forEach((attr) => {
+          if (node.attrs[attr]) {
+            node.attrs[attr] = mapTokens(node.attrs[attr]);
+          }
+        });
+      }
+      if (Array.isArray(node.children)) {
+        node.children.forEach(walk);
+      }
+      if (Array.isArray(node.structures)) {
+        node.structures.forEach(walk);
+      }
+    }
+
+    walk(root);
+    return root;
+  }
+
   return {
     capture,
     inspectMarketplace,
@@ -392,6 +460,7 @@
     download,
     copy,
     sanitizeString,
+    normalizeStructureIds,
     SUSPICIOUS_PATTERNS,
   };
 });

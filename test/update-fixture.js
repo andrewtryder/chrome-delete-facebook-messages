@@ -3,7 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
-const { validate, SUSPICIOUS_PATTERNS } = require("./capture-messenger-fixture");
+const { validate, normalizeStructureIds, SUSPICIOUS_PATTERNS } = require("./capture-messenger-fixture");
 
 const defaultInput = path.resolve(__dirname, "fixtures/messenger-structure.json");
 const targetFile = defaultInput;
@@ -19,14 +19,15 @@ try {
   const content = fs.readFileSync(inputFile, "utf8");
   const parsed = JSON.parse(content);
 
+  normalizeStructureIds(parsed);
   validate(parsed);
   console.log("✅ Privacy validation passed: No sensitive patterns detected.");
 
+  fs.writeFileSync(targetFile, JSON.stringify(parsed, null, 2) + "\n", "utf8");
   if (inputFile !== targetFile) {
-    fs.writeFileSync(targetFile, JSON.stringify(parsed, null, 2) + "\n", "utf8");
     console.log(`✅ Updated fixture written to ${targetFile}`);
   } else {
-    console.log(`✅ Existing fixture ${targetFile} is valid and privacy-safe.`);
+    console.log(`✅ Existing fixture ${targetFile} is valid, normalized, and privacy-safe.`);
   }
 } catch (err) {
   console.error("❌ Privacy validation error:", err.message);

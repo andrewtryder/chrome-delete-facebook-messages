@@ -1,6 +1,36 @@
 (function () {
   "use strict";
 
+  const fixtureModel = (typeof window !== "undefined" && window.__GENERATED_FIXTURE_MODEL__) || {
+    threadMenuButton: {
+      tag: "div",
+      role: "button",
+      ariaHaspopup: "menu",
+      ariaControls: "thread-list-menu-buttons",
+      tabindex: "0",
+      labelPattern: "More options for {name}",
+    },
+    menu: {
+      menuRole: "menu",
+      menuId: "thread-list-menu-buttons",
+      itemRole: "menuitem",
+      itemTag: "button",
+      labels: {
+        delete: "Delete chat",
+        archive: "Archive",
+        restore: "Restore",
+      },
+    },
+    dialog: {
+      dialogRole: "dialog",
+      labels: {
+        confirmDelete: "Delete chat",
+        cancel: "Cancel",
+        unrelatedAction: "Learn more",
+      },
+    },
+  };
+
   const initialInbox = [
     { id: "normal-1", name: "Person 001", unread: false },
     { id: "normal-2", name: "Person 002", unread: true },
@@ -121,13 +151,15 @@
 
       content.append(nameSpan, previewSpan);
 
-      // Thread menu button matching SELECTORS.threadMenuButton
-      const moreBtn = document.createElement("div");
-      moreBtn.setAttribute("role", "button");
-      moreBtn.setAttribute("aria-label", `More options for ${thread.name}`);
-      moreBtn.setAttribute("aria-controls", "thread-list-menu-buttons");
-      moreBtn.setAttribute("aria-haspopup", "menu");
-      moreBtn.setAttribute("tabindex", "0");
+      // Thread menu button driven by generated fixture model semantics
+      const btnCfg = fixtureModel.threadMenuButton || {};
+      const moreBtn = document.createElement(btnCfg.tag || "div");
+      moreBtn.setAttribute("role", btnCfg.role || "button");
+      const labelPattern = btnCfg.labelPattern || "More options for {name}";
+      moreBtn.setAttribute("aria-label", labelPattern.replace("{name}", thread.name));
+      moreBtn.setAttribute("aria-controls", btnCfg.ariaControls || "thread-list-menu-buttons");
+      moreBtn.setAttribute("aria-haspopup", btnCfg.ariaHaspopup || "menu");
+      moreBtn.setAttribute("tabindex", btnCfg.tabindex || "0");
       moreBtn.className = "more-btn";
       moreBtn.textContent = "•••";
 
@@ -142,8 +174,9 @@
   }
 
   function createMenuItem(label, onClick) {
-    const btn = document.createElement("button");
-    btn.setAttribute("role", "menuitem");
+    const itemTag = fixtureModel.menu?.itemTag || "button";
+    const btn = document.createElement(itemTag);
+    btn.setAttribute("role", fixtureModel.menu?.itemRole || "menuitem");
     btn.setAttribute("type", "button");
     btn.textContent = label;
     btn.addEventListener("click", (e) => {
@@ -159,23 +192,24 @@
 
     const menu = document.createElement("div");
     menu.className = "menu";
-    menu.id = "thread-list-menu-buttons";
-    menu.setAttribute("role", "menu");
+    menu.id = fixtureModel.menu?.menuId || "thread-list-menu-buttons";
+    menu.setAttribute("role", fixtureModel.menu?.menuRole || "menu");
 
     const rect = anchorEl.getBoundingClientRect();
     menu.style.left = `${Math.max(10, rect.left - 150)}px`;
     menu.style.top = `${rect.bottom + 4}px`;
 
+    const labels = fixtureModel.menu?.labels || {};
     if (state.view === "archived") {
       menu.append(
-        createMenuItem("Restore", () => {
+        createMenuItem(labels.restore || "Restore", () => {
           moveThread(thread, "archived", "inbox");
           state.unarchivedCount++;
         }),
       );
     } else {
       menu.append(
-        createMenuItem("Archive", () => {
+        createMenuItem(labels.archive || "Archive", () => {
           moveThread(thread, state.view, "archived");
           state.archivedCount++;
         }),
@@ -183,7 +217,7 @@
 
       if (!flags.missingDelete) {
         menu.append(
-          createMenuItem("Delete chat", () => {
+          createMenuItem(labels.delete || "Delete chat", () => {
             confirmDelete(thread);
           }),
         );
@@ -202,17 +236,18 @@
   function confirmDelete(thread) {
     closeOverlays();
 
+    const dialogLabels = fixtureModel.dialog?.labels || {};
     const backdrop = document.createElement("div");
     backdrop.className = "dialog-backdrop";
-    backdrop.setAttribute("role", "dialog");
+    backdrop.setAttribute("role", fixtureModel.dialog?.dialogRole || "dialog");
     backdrop.setAttribute("aria-modal", "true");
-    backdrop.setAttribute("aria-label", "Delete chat");
+    backdrop.setAttribute("aria-label", dialogLabels.confirmDelete || "Delete chat");
 
     const dialog = document.createElement("div");
     dialog.className = "dialog";
 
     const heading = document.createElement("h2");
-    heading.textContent = "Delete chat";
+    heading.textContent = dialogLabels.confirmDelete || "Delete chat";
 
     const desc = document.createElement("p");
     desc.textContent = "Delete your copy of this chat? This cannot be undone.";
@@ -224,7 +259,7 @@
     learnMoreBtn.setAttribute("role", "button");
     learnMoreBtn.setAttribute("type", "button");
     learnMoreBtn.className = "btn-secondary";
-    learnMoreBtn.textContent = "Learn more";
+    learnMoreBtn.textContent = dialogLabels.unrelatedAction || "Learn more";
     learnMoreBtn.addEventListener("click", () => {
       // Harmless no-op button to test button discrimination
     });
@@ -234,7 +269,7 @@
     cancelBtn.setAttribute("role", "button");
     cancelBtn.setAttribute("type", "button");
     cancelBtn.className = "btn-cancel";
-    cancelBtn.textContent = "Cancel";
+    cancelBtn.textContent = dialogLabels.cancel || "Cancel";
     cancelBtn.addEventListener("click", () => {
       closeOverlays();
     });
@@ -247,7 +282,7 @@
       confirmBtn.setAttribute("role", "button");
       confirmBtn.setAttribute("type", "button");
       confirmBtn.className = "btn-confirm danger";
-      confirmBtn.textContent = "Delete chat";
+      confirmBtn.textContent = dialogLabels.confirmDelete || "Delete chat";
       confirmBtn.addEventListener("click", () => {
         state[state.view] = currentThreads().filter((t) => t.id !== thread.id);
         state.deletedCount++;
