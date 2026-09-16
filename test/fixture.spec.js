@@ -49,7 +49,7 @@ test.beforeEach(async ({ context, page }) => {
       },
       storage: {
         local: {
-          data: { speedLevel: "ultra", dryRun: false, trialsFast: 0 },
+          data: { speedLevel: "ultra", dryRun: false },
           get(keys, cb) {
             let res = {};
             if (Array.isArray(keys)) {
