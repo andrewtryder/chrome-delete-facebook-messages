@@ -19,17 +19,12 @@
     {
       "matches": [
         "https://*.facebook.com/*",
-        "https://*.messenger.com/*",
-        "http://127.0.0.1:4173/*",
-        "http://localhost:4173/*"
+        "https://*.messenger.com/*"
       ],
       "css": [
         "css/style.css"
       ],
       "js": [
-        "js/jquery.min.js",
-        "js/sweetAlert.min.js",
-        "js/jquery-confirm.js",
         "js/script.js"
       ],
       "run_at": "document_end"
