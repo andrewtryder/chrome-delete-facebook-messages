@@ -336,6 +336,13 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
       initialArchived + 1,
     );
 
+    // Verify popup returns to idle
+    await popupPage.waitForFunction(
+      () => document.getElementById("running-card")?.classList.contains("hidden") &&
+            !document.getElementById("btn-main-cta")?.classList.contains("hidden"),
+      { timeout: 15000 },
+    );
+
     await popupPage.close();
     await fixturePage.close();
   });
@@ -375,6 +382,13 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
       { timeout: 12000 },
     );
 
+    // Verify popup returns to idle
+    await popupPage.waitForFunction(
+      () => document.getElementById("running-card")?.classList.contains("hidden") &&
+            !document.getElementById("btn-main-cta")?.classList.contains("hidden"),
+      { timeout: 15000 },
+    );
+
     await popupPage.close();
     await fixturePage.close();
   });
@@ -411,6 +425,13 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
         return inspected >= 1;
       },
       { timeout: 12000 },
+    );
+
+    // Verify popup returns to idle
+    await popupPage.waitForFunction(
+      () => document.getElementById("running-card")?.classList.contains("hidden") &&
+            !document.getElementById("btn-main-cta")?.classList.contains("hidden"),
+      { timeout: 15000 },
     );
 
     await popupPage.close();
@@ -625,5 +646,158 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
     expect(settingsLayout.scrollWidth).toBeLessThanOrEqual(440);
 
     await popupPage.close();
+  });
+
+  test("22. Activity tab renders completed run summary and clears cleanly", async () => {
+    const fixturePage = await context.newPage();
+    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
+
+    const popupPage = await context.newPage();
+    await popupPage.goto(
+      `chrome-extension://${extensionId}/src/browser_action/browser_action.html`,
+    );
+
+    await popupPage.waitForFunction(
+      () => document.getElementById("status-heading")?.textContent === "Ready",
+    );
+
+    // Run a quick dry run
+    await popupPage.locator('[data-testid="dry-run-toggle"]').check();
+    await popupPage.locator('[data-testid="limit-toggle"]').check();
+    await popupPage.locator('[data-testid="max-actions-input"]').fill("1");
+    await popupPage.locator('[data-testid="main-cta-btn"]').click();
+
+    // Wait until idle
+    await popupPage.waitForFunction(
+      () => document.getElementById("running-card")?.classList.contains("hidden") &&
+            !document.getElementById("btn-main-cta")?.classList.contains("hidden"),
+      { timeout: 15000 },
+    );
+
+    // Open settings -> Activity tab
+    await popupPage.locator('[data-testid="settings-btn"]').click();
+    await popupPage.locator('[data-testid="tab-activity"]').click();
+
+    // Verify activity details are rendered
+    await popupPage.waitForFunction(
+      () => !document.getElementById("activity-details")?.classList.contains("hidden"),
+    );
+
+    const actionText = await popupPage.locator("#act-action").textContent();
+    const resultText = await popupPage.locator("#act-result").textContent();
+    expect(actionText).toContain("Delete regular");
+    expect(resultText.length).toBeGreaterThan(0);
+
+    // Clear activity
+    await popupPage.locator('[data-testid="clear-activity-btn"]').click();
+    await popupPage.waitForFunction(
+      () => !document.getElementById("empty-activity")?.classList.contains("hidden"),
+    );
+
+    await popupPage.close();
+    await fixturePage.close();
+  });
+
+  test("23. Popup rehydrates live state from running content script via getAutomationState", async () => {
+    const fixturePage = await context.newPage();
+    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
+
+    const popup1 = await context.newPage();
+    await popup1.goto(
+      `chrome-extension://${extensionId}/src/browser_action/browser_action.html`,
+    );
+    await popup1.waitForFunction(
+      () => document.getElementById("status-heading")?.textContent === "Ready",
+    );
+
+    await popup1.locator('[data-testid="dry-run-toggle"]').check();
+    await popup1.locator('[data-testid="limit-toggle"]').check();
+    await popup1.locator('[data-testid="max-actions-input"]').fill("5");
+    await popup1.locator('[data-testid="main-cta-btn"]').click();
+
+    // Verify popup 1 is running
+    await popup1.waitForFunction(
+      () => !document.getElementById("running-card")?.classList.contains("hidden"),
+    );
+
+    // Close popup 1 while automation is active
+    await popup1.close();
+
+    // Open popup 2 in a new page to test rehydration
+    const popup2 = await context.newPage();
+    await popup2.goto(
+      `chrome-extension://${extensionId}/src/browser_action/browser_action.html`,
+    );
+
+    // Verify popup 2 rehydrates running status or processed inspection counters
+    await popup2.waitForFunction(
+      () => {
+        const isRunning = !document.getElementById("running-card")?.classList.contains("hidden");
+        const inspected = parseInt(document.getElementById("metric-inspected-val")?.textContent || "0", 10);
+        return isRunning || inspected >= 1;
+      },
+      { timeout: 15000 },
+    );
+
+    await popup2.close();
+    await fixturePage.close();
+  });
+
+  test("24. Destructive confirmation modal focus trap, Escape dismissal, and focus restoration", async () => {
+    const fixturePage = await context.newPage();
+    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
+
+    const popupPage = await context.newPage();
+    await popupPage.goto(
+      `chrome-extension://${extensionId}/src/browser_action/browser_action.html`,
+    );
+
+    await popupPage.waitForFunction(
+      () => document.getElementById("status-heading")?.textContent === "Ready",
+    );
+
+    await popupPage.locator('[data-testid="dry-run-toggle"]').uncheck();
+    await popupPage.locator('[data-testid="main-cta-btn"]').click();
+
+    // Modal is visible
+    expect(await popupPage.locator('[data-testid="confirm-modal"]').isVisible()).toBe(true);
+
+    // Initial focus on Cancel button
+    const activeElementId = await popupPage.evaluate(() => document.activeElement?.id);
+    expect(activeElementId).toBe("btn-modal-cancel");
+
+    // Press Escape to dismiss modal
+    await popupPage.keyboard.press("Escape");
+    expect(await popupPage.locator('[data-testid="confirm-modal"]').isVisible()).toBe(false);
+
+    // Focus restored to CTA
+    const restoredId = await popupPage.evaluate(() => document.activeElement?.id);
+    expect(restoredId).toBe("btn-main-cta");
+
+    // Reopen modal and test Tab focus trap
+    await popupPage.locator('[data-testid="main-cta-btn"]').click();
+    expect(await popupPage.locator('[data-testid="confirm-modal"]').isVisible()).toBe(true);
+
+    // Press Tab - moves to Confirm button
+    await popupPage.keyboard.press("Tab");
+    expect(await popupPage.evaluate(() => document.activeElement?.id)).toBe("btn-modal-confirm");
+
+    // Press Tab again - wraps back to Cancel button
+    await popupPage.keyboard.press("Tab");
+    expect(await popupPage.evaluate(() => document.activeElement?.id)).toBe("btn-modal-cancel");
+
+    // Press Shift+Tab - wraps backward to Confirm button
+    await popupPage.keyboard.press("Shift+Tab");
+    expect(await popupPage.evaluate(() => document.activeElement?.id)).toBe("btn-modal-confirm");
+
+    // Dismiss with Cancel button
+    await popupPage.locator('[data-testid="modal-cancel-btn"]').click();
+    expect(await popupPage.locator('[data-testid="confirm-modal"]').isVisible()).toBe(false);
+
+    await popupPage.close();
+    await fixturePage.close();
   });
 });

@@ -133,6 +133,50 @@ describe("Popup Unit Tests — Aggregate Activity Sanitization", () => {
     assert.equal(emptyPrefs.speedLevel, "fast");
     assert.equal(emptyPrefs.lastActivity, null);
   });
+
+  test("initializes session controls directly from configured defaults", () => {
+    const customDefaults = normalizePreferences({
+      defaultDryRun: true,
+      defaultLimitEnabled: true,
+      defaultMaxActions: 42,
+      defaultSpeedLevel: "ultra",
+      // Legacy or stale main keys should not override explicit defaults
+      dryRun: false,
+      limitEnabled: false,
+    });
+    assert.equal(customDefaults.dryRun, true);
+    assert.equal(customDefaults.limitEnabled, true);
+    assert.equal(customDefaults.maxActions, 42);
+    assert.equal(customDefaults.speedLevel, "ultra");
+  });
+
+  test("reads recentActivity fallback from content script when lastActivity is empty", () => {
+    const stored = {
+      recentActivity: {
+        action: "Delete regular conversations",
+        result: "Completed",
+        processed: 3,
+        inspected: 3,
+        skipped: 0,
+        errors: 0,
+      },
+    };
+    const prefs = normalizePreferences(stored);
+    assert.notEqual(prefs.lastActivity, null);
+    assert.equal(prefs.lastActivity.processed, 3);
+  });
+});
+
+describe("Popup Unit Tests — Mode to Operation Mapping", () => {
+  const { mapModeToOperation } = require("../../src/browser_action/js/browser_action");
+
+  test("maps runtime modes to popup operations", () => {
+    assert.equal(mapModeToOperation("delete"), "delete");
+    assert.equal(mapModeToOperation("archive"), "archive");
+    assert.equal(mapModeToOperation("deleteBuySell"), "deleteBuySell");
+    assert.equal(mapModeToOperation("unarchive"), "unarchive");
+    assert.equal(mapModeToOperation("unknown"), "delete");
+  });
 });
 
 describe("Popup Unit Tests — Zero Remote Resources Audit", () => {

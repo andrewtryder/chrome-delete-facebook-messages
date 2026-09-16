@@ -47,6 +47,21 @@ function getOperationName(operation) {
   }
 }
 
+function mapModeToOperation(mode) {
+  switch (mode) {
+    case "delete":
+      return "delete";
+    case "archive":
+      return "archive";
+    case "deleteBuySell":
+      return "deleteBuySell";
+    case "unarchive":
+      return "unarchive";
+    default:
+      return "delete";
+  }
+}
+
 function getProcessedLabel(operation) {
   switch (operation) {
     case "archive":
@@ -140,24 +155,34 @@ function sanitizeActivity(raw) {
 
 function normalizePreferences(stored = {}) {
   const theme = migrateTheme(stored.theme, stored.darkMode);
-  const dryRun = typeof stored.dryRun === "boolean" ? stored.dryRun : !!stored.defaultDryRun;
-  const limitEnabled = typeof stored.limitEnabled === "boolean" ? stored.limitEnabled : !!stored.defaultLimitEnabled;
-  const maxActions = validateMaxActions(stored.maxActions || stored.defaultMaxActions || 10);
-  const speedLevel = ["slow", "normal", "fast", "veryfast", "ultra"].includes(stored.speedLevel)
-    ? stored.speedLevel
-    : (stored.defaultSpeedLevel || "fast");
+  const defaultDryRun = stored.defaultDryRun !== undefined
+    ? Boolean(stored.defaultDryRun)
+    : Boolean(stored.dryRun);
+  const defaultLimitEnabled = stored.defaultLimitEnabled !== undefined
+    ? Boolean(stored.defaultLimitEnabled)
+    : Boolean(stored.limitEnabled);
+  const defaultMaxActions = validateMaxActions(
+    stored.defaultMaxActions !== undefined
+      ? stored.defaultMaxActions
+      : (stored.maxActions !== undefined ? stored.maxActions : 10),
+  );
+  const defaultSpeedLevel = ["slow", "normal", "fast", "veryfast", "ultra"].includes(stored.defaultSpeedLevel)
+    ? stored.defaultSpeedLevel
+    : (["slow", "normal", "fast", "veryfast", "ultra"].includes(stored.speedLevel)
+        ? stored.speedLevel
+        : "fast");
 
   return {
     theme,
-    dryRun,
-    limitEnabled,
-    maxActions,
-    speedLevel,
-    defaultDryRun: !!stored.defaultDryRun,
-    defaultLimitEnabled: !!stored.defaultLimitEnabled,
-    defaultMaxActions: validateMaxActions(stored.defaultMaxActions || 10),
-    defaultSpeedLevel: stored.defaultSpeedLevel || "fast",
-    lastActivity: sanitizeActivity(stored.lastActivity),
+    dryRun: defaultDryRun,
+    limitEnabled: defaultLimitEnabled,
+    maxActions: defaultMaxActions,
+    speedLevel: defaultSpeedLevel,
+    defaultDryRun,
+    defaultLimitEnabled,
+    defaultMaxActions,
+    defaultSpeedLevel,
+    lastActivity: sanitizeActivity(stored.lastActivity || stored.recentActivity),
   };
 }
 
@@ -284,6 +309,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
       btnResetSettings: document.getElementById("btn-reset-settings"),
 
       // Activity Controls
+      activityContent: document.getElementById("activity-content"),
       emptyActivity: document.getElementById("empty-activity"),
       activityDetails: document.getElementById("activity-details"),
       actAction: document.getElementById("act-action"),
@@ -370,6 +396,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
         state.activeTabId = tab.id;
         state.activeTabUrl = tab.url;
         updatePageStatus("ready");
+        rehydrateAutomationState();
       } else {
         state.activeTabId = tab ? tab.id : null;
         state.activeTabUrl = tab ? tab.url : "";
@@ -563,7 +590,10 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     startOperation();
   }
 
+  let previousFocusedElement = null;
+
   function openConfirmModal() {
+    previousFocusedElement = document.activeElement;
     if (state.operation === "deleteBuySell") {
       els.modalTitle.textContent = "Delete Marketplace conversations?";
       els.btnModalConfirm.textContent = "Delete Marketplace conversations";
@@ -572,11 +602,50 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
       els.btnModalConfirm.textContent = "Delete conversations";
     }
     els.confirmModal.classList.remove("hidden");
+    if (els.btnModalCancel) {
+      els.btnModalCancel.focus();
+    }
   }
 
   function closeConfirmModal() {
-    els.confirmModal.classList.add("hidden");
+    if (els.confirmModal) {
+      els.confirmModal.classList.add("hidden");
+    }
+    if (previousFocusedElement && typeof previousFocusedElement.focus === "function") {
+      previousFocusedElement.focus();
+      previousFocusedElement = null;
+    }
   }
+
+  function handleModalKeydown(e) {
+    if (!els.confirmModal || els.confirmModal.classList.contains("hidden")) return;
+
+    if (e.key === "Escape") {
+      e.preventDefault();
+      closeConfirmModal();
+      return;
+    }
+
+    if (e.key === "Tab") {
+      const focusable = [els.btnModalCancel, els.btnModalConfirm].filter(Boolean);
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (e.shiftKey) {
+        if (document.activeElement === first) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else {
+        if (document.activeElement === last) {
+          e.preventDefault();
+          first.focus();
+        }
+      }
+    }
+  }
+  document.addEventListener("keydown", handleModalKeydown);
 
   function startOperation() {
     closeConfirmModal();
@@ -626,6 +695,44 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     sendToActiveTab("stopAutomation", {});
   }
 
+  function rehydrateAutomationState() {
+    if (!state.activeTabId || typeof chrome === "undefined" || !chrome.tabs) return;
+
+    chrome.tabs.sendMessage(state.activeTabId, { action: "getAutomationState" }, (res) => {
+      if (chrome.runtime.lastError || !res || !res.ok) return;
+
+      if (res.running) {
+        state.running = true;
+        state.stopping = Boolean(res.stopping);
+        if (res.mode) {
+          state.operation = mapModeToOperation(res.mode);
+          els.operationRadios.forEach((r) => {
+            r.checked = r.value === state.operation;
+          });
+          els.radioCards.forEach((card) => {
+            const radio = card.querySelector('input[type="radio"]');
+            card.classList.toggle("active", radio && radio.value === state.operation);
+          });
+        }
+        if (typeof res.dryRun === "boolean") {
+          state.dryRun = res.dryRun;
+          els.dryRunToggle.checked = res.dryRun;
+        }
+        state.processed = res.processed || 0;
+        state.inspected = res.inspected || 0;
+        state.skipped = res.skipped || 0;
+        state.errors = res.errors || 0;
+
+        renderRunningState();
+        renderMetrics();
+        updateSafetyNotice();
+        updateCtaButton();
+      } else if (state.running) {
+        finalizeRun("Completed");
+      }
+    });
+  }
+
   function sendToActiveTab(action, payload = {}) {
     if (!state.activeTabId) return;
 
@@ -638,6 +745,20 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
           "Content script not reachable. Refresh Facebook Messages and try again.",
           "error",
         );
+        return;
+      }
+
+      if (res && res.ok === false) {
+        if (res.busy) {
+          state.running = true;
+          showNotification(res.message || "Automation is already active in this tab.", "warning");
+          rehydrateAutomationState();
+        } else {
+          state.running = false;
+          state.stopping = false;
+          renderRunningState();
+          showNotification(res.message || "Operation could not be started.", "error");
+        }
       }
     });
   }
@@ -660,7 +781,10 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     state.lastActivity = activity;
 
     if (typeof chrome !== "undefined" && chrome.storage && chrome.storage.local) {
-      chrome.storage.local.set({ lastActivity: activity });
+      chrome.storage.local.set({
+        lastActivity: activity,
+        recentActivity: activity,
+      });
     }
   }
 
@@ -710,6 +834,9 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
           break;
 
         case "noMessagesToDlt":
+        case "NoMsgsToArchv":
+        case "noBuySellMsgs":
+        case "noArchivedMsgs":
         case "loadedComplete":
         case "archivedSuccess":
         case "unarchivedSuccess":
@@ -733,6 +860,10 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
         case "automationError":
         case "deleteError":
         case "archiveError":
+        case "deleteBuySellError":
+        case "unarchiveError":
+        case "clickError":
+        case "noBuySell":
           state.errors += 1;
           renderMetrics();
           finalizeRun(`Error: ${request.message || "Unknown error"}`);
@@ -772,9 +903,11 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     // Dry Run Toggle
     els.dryRunToggle.addEventListener("change", (e) => {
       state.dryRun = e.target.checked;
+      state.defaultDryRun = state.dryRun;
+      if (els.settingDefaultDryRun) els.settingDefaultDryRun.checked = state.dryRun;
       updateCtaButton();
       if (chrome?.storage?.local) {
-        chrome.storage.local.set({ dryRun: state.dryRun });
+        chrome.storage.local.set({ dryRun: state.dryRun, defaultDryRun: state.dryRun });
       }
       showNotification(
         state.dryRun ? "Dry run enabled: actions will only be previewed." : "Dry run disabled.",
@@ -785,25 +918,35 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     // Limit Toggle
     els.limitToggle.addEventListener("change", (e) => {
       state.limitEnabled = e.target.checked;
+      state.defaultLimitEnabled = state.limitEnabled;
       els.limitInputWrap.classList.toggle("hidden", !state.limitEnabled);
+      if (els.settingDefaultLimit) els.settingDefaultLimit.checked = state.limitEnabled;
+      if (els.settingDefaultLimitWrap) els.settingDefaultLimitWrap.classList.toggle("hidden", !state.limitEnabled);
       if (chrome?.storage?.local) {
-        chrome.storage.local.set({ limitEnabled: state.limitEnabled });
+        chrome.storage.local.set({ limitEnabled: state.limitEnabled, defaultLimitEnabled: state.limitEnabled });
       }
     });
 
     // Max Actions Input
     els.maxActionsInput.addEventListener("input", (e) => {
       state.maxActions = validateMaxActions(e.target.value);
+      state.defaultMaxActions = state.maxActions;
+      if (els.settingDefaultLimitVal) els.settingDefaultLimitVal.value = state.maxActions;
       if (chrome?.storage?.local) {
-        chrome.storage.local.set({ maxActions: state.maxActions });
+        chrome.storage.local.set({ maxActions: state.maxActions, defaultMaxActions: state.maxActions });
       }
     });
 
     // Delay / Speed Select
     els.speedSelect.addEventListener("change", (e) => {
       state.speedLevel = e.target.value;
+      state.defaultSpeedLevel = e.target.value;
+      if (els.settingDefaultSpeed) els.settingDefaultSpeed.value = state.speedLevel;
       if (chrome?.storage?.local) {
-        chrome.storage.local.set({ speedLevel: state.speedLevel });
+        chrome.storage.local.set({
+          speedLevel: state.speedLevel,
+          defaultSpeedLevel: state.defaultSpeedLevel,
+        });
       }
       showNotification("Delay setting updated.", "info");
     });
@@ -824,23 +967,36 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     // Settings Defaults
     els.settingDefaultDryRun.addEventListener("change", (e) => {
       state.defaultDryRun = e.target.checked;
-      chrome?.storage?.local?.set({ defaultDryRun: state.defaultDryRun });
+      state.dryRun = state.defaultDryRun;
+      if (els.dryRunToggle) els.dryRunToggle.checked = state.dryRun;
+      updateCtaButton();
+      chrome?.storage?.local?.set({ dryRun: state.dryRun, defaultDryRun: state.defaultDryRun });
     });
 
     els.settingDefaultLimit.addEventListener("change", (e) => {
       state.defaultLimitEnabled = e.target.checked;
+      state.limitEnabled = state.defaultLimitEnabled;
+      if (els.limitToggle) els.limitToggle.checked = state.limitEnabled;
+      if (els.limitInputWrap) els.limitInputWrap.classList.toggle("hidden", !state.limitEnabled);
       els.settingDefaultLimitWrap.classList.toggle("hidden", !state.defaultLimitEnabled);
-      chrome?.storage?.local?.set({ defaultLimitEnabled: state.defaultLimitEnabled });
+      chrome?.storage?.local?.set({ limitEnabled: state.limitEnabled, defaultLimitEnabled: state.defaultLimitEnabled });
     });
 
     els.settingDefaultLimitVal.addEventListener("input", (e) => {
       state.defaultMaxActions = validateMaxActions(e.target.value);
-      chrome?.storage?.local?.set({ defaultMaxActions: state.defaultMaxActions });
+      state.maxActions = state.defaultMaxActions;
+      if (els.maxActionsInput) els.maxActionsInput.value = state.maxActions;
+      chrome?.storage?.local?.set({ maxActions: state.maxActions, defaultMaxActions: state.maxActions });
     });
 
     els.settingDefaultSpeed.addEventListener("change", (e) => {
       state.defaultSpeedLevel = e.target.value;
-      chrome?.storage?.local?.set({ defaultSpeedLevel: state.defaultSpeedLevel });
+      state.speedLevel = state.defaultSpeedLevel;
+      if (els.speedSelect) els.speedSelect.value = state.speedLevel;
+      chrome?.storage?.local?.set({
+        defaultSpeedLevel: state.defaultSpeedLevel,
+        speedLevel: state.defaultSpeedLevel,
+      });
     });
 
     // Theme Selector
@@ -850,19 +1006,14 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
     });
 
     // Reset Buttons
-    els.btnResetActivity.addEventListener("click", () => {
+    const clearActivityHandler = () => {
       state.lastActivity = null;
       renderActivityView();
-      chrome?.storage?.local?.remove(["lastActivity"]);
-      showNotification("Local activity history cleared.", "success");
-    });
-
-    els.btnClearActivity.addEventListener("click", () => {
-      state.lastActivity = null;
-      renderActivityView();
-      chrome?.storage?.local?.remove(["lastActivity"]);
+      chrome?.storage?.local?.remove(["lastActivity", "recentActivity"]);
       showNotification("Activity history cleared.", "success");
-    });
+    };
+    els.btnResetActivity.addEventListener("click", clearActivityHandler);
+    els.btnClearActivity.addEventListener("click", clearActivityHandler);
 
     els.btnResetSettings.addEventListener("click", () => {
       state.dryRun = false;
@@ -878,10 +1029,12 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
       applyTheme("system");
       syncStateToDom();
 
+      chrome?.storage?.local?.remove([
+        "dryRun",
+        "limitEnabled",
+        "maxActions",
+      ]);
       chrome?.storage?.local?.set({
-        dryRun: false,
-        limitEnabled: false,
-        maxActions: 10,
         speedLevel: "fast",
         theme: "system",
         defaultDryRun: false,
@@ -961,5 +1114,6 @@ if (typeof module !== "undefined" && module.exports) {
     validateMaxActions,
     sanitizeActivity,
     normalizePreferences,
+    mapModeToOperation,
   };
 }
