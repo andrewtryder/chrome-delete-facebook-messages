@@ -1,17 +1,24 @@
-# Delete Facebook Messages Fast 2026
+# Delete Facebook Messages
 
-Chrome Extension for deleting, archiving, and managing Facebook Messenger conversations quickly and safely.
+Open-source browser extension to preview, delete, archive, and restore Messenger conversations directly in your browser.
 
 ---
 
 ## Features
 
-- **Delete Regular Messages**: Cleans normal Messenger Inbox conversations.
-- **Delete Marketplace Messages**: Dedicated button for Facebook Marketplace / Buy & Sell chats.
-- **Archive & Restore**: Archive threads or restore all archived conversations.
-- **Dry Run Mode**: Audits and simulates actions without clicking destructive buttons.
-- **Speed Controls**: Configurable action pacing (Slow, Normal, Fast, Very Fast, Ultra).
-- **Offline Mock Fixture**: Offline testing environment using realistic Messenger structures without touching live accounts.
+- **Clean Open-Source UI**: Lightweight, accessible settings-style interface built with vanilla JavaScript, modern CSS tokens, and zero external runtime dependencies.
+- **Conversation Operations**:
+  - **Delete regular conversations**: Clean conversations from your main Messenger inbox.
+  - **Delete Marketplace conversations**: Clean chats associated with Facebook Marketplace / Buy & Sell listings.
+  - **Archive regular conversations**: Move regular conversations into Archived chats.
+  - **Restore archived conversations**: Move archived conversations back to your inbox with verified navigation.
+- **In-Popup Confirmation Sheet**: Custom modal confirmation before destructive deletions; no native `window.confirm()` dialogs.
+- **Dry Run Mode**: Audits and previews matching conversations without triggering destructive actions.
+- **Action Limits**: Optional configurable cap on the number of conversations processed per run.
+- **Configurable Action Delays**: Pacing presets ranging from *Very careful* (~18s) to *Fastest* (~1.2s).
+- **Light / Dark Themes**: Accessible color tokens honoring system preferences with manual theme toggles.
+- **Local Privacy**: Runs strictly locally inside your browser session; no conversation data, thread URLs, or personal identifiers are collected or transmitted.
+- **Offline Mock Fixture & MV3 E2E Tests**: Comprehensive native `node:test` unit test suite and Playwright extension tests running against simulated Messenger fixtures.
 
 ---
 
