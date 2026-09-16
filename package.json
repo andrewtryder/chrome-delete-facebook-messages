@@ -2,8 +2,11 @@
   "name": "chrome-delete-facebook-messages",
   "private": true,
   "scripts": {
-    "test": "playwright test",
+    "test": "node --test test/unit/*.test.js && playwright test",
+    "test:unit": "node --test test/unit/*.test.js",
     "test:fixture": "playwright test test/fixture.spec.js",
+    "test:e2e": "playwright test test/extension-e2e.spec.js",
+    "build": "node scripts/build.js",
     "serve:fixture": "node test/serve-fixture.js",
     "serve:testfixture": "node test/serve-fixture.js",
     "manifest:dev": "node scripts/dev-manifest.js --dev",

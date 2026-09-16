@@ -1,6 +1,10 @@
 console.log("🚀 FBChats Cleaner - script.js injected successfully");
 console.log("Current URL:", window.location.href);
 
+if (typeof document !== "undefined" && document.documentElement) {
+  document.documentElement.setAttribute("data-fb-cleaner-injected", "true");
+}
+
 (() => {
   "use strict";
 
@@ -311,7 +315,7 @@ console.log("Current URL:", window.location.href);
     );
   }
 
-  function realClick(rawEl) {
+  function activate(rawEl) {
     const el = closestClickable(rawEl);
     if (!el) return false;
 
@@ -333,53 +337,17 @@ console.log("Current URL:", window.location.href);
       } catch (__) {}
     }
 
-    const rect = el.getBoundingClientRect();
-    const x = rect.left + rect.width / 2;
-    const y = rect.top + rect.height / 2;
-
-    const events = [
-      "pointerover",
-      "pointerenter",
-      "pointermove",
-      "mouseover",
-      "mouseenter",
-      "mousemove",
-      "pointerdown",
-      "mousedown",
-      "pointerup",
-      "mouseup",
-    ];
-
-    for (const type of events) {
-      const EventCtor =
-        type.startsWith("pointer") && typeof PointerEvent === "function"
-          ? PointerEvent
-          : MouseEvent;
-
-      el.dispatchEvent(
-        new EventCtor(type, {
-          bubbles: true,
-          cancelable: true,
-          composed: true,
-          view: window,
-          clientX: x,
-          clientY: y,
-          pointerId: 1,
-          pointerType: "mouse",
-          isPrimary: true,
-          button: 0,
-          buttons: type.endsWith("down") ? 1 : 0,
-        }),
-      );
+    // Direct click is the safest single-action invocation for React & native DOM
+    // without semantic double-action risks from synthesized pointerup sequences.
+    if (typeof el.click === "function") {
+      el.click();
+      return true;
     }
 
-    // Dispatch pointer/mouse affordance events, then exactly one logical click.
-    // Do not dispatch a synthetic click *and* call click(): React and native
-    // controls can treat those as two separate user actions.
-    if (typeof el.click === "function") el.click();
-
-    return true;
+    return false;
   }
+
+  const realClick = activate;
 
   function pressEnterOn(rawEl) {
     const el = closestClickable(rawEl);
@@ -527,23 +495,49 @@ console.log("Current URL:", window.location.href);
     };
   }
 
+  let threadIdentitySequence = 0;
+  function getThreadIdentity(el) {
+    if (!el || !(el instanceof Element)) return null;
+    const row =
+      el.closest('[role="row"], [role="listitem"], article, div[role="gridcell"]') ||
+      el;
+    const hrefEl =
+      row.querySelector('a[href*="/messages/t/"]') ||
+      (row.tagName === "A" && row.getAttribute("href") ? row : null);
+    if (hrefEl && hrefEl.getAttribute("href")) {
+      return hrefEl.getAttribute("href");
+    }
+    const dataId = row.getAttribute("data-thread-id") || row.id;
+    if (dataId) return `id:${dataId}`;
+    if (!row.__dfmf_thread_id) {
+      threadIdentitySequence++;
+      row.__dfmf_thread_id = `dfmf-thread-${threadIdentitySequence}`;
+    }
+    return row.__dfmf_thread_id;
+  }
+
   // ---------------------------------------------------------------------------
   // Messenger selectors/actions
   // ---------------------------------------------------------------------------
-  function getThreadMenuButtons(skipLabels = new Set()) {
+  function getThreadMenuButtons(skipIdentities = new Set()) {
     const primary = visibleElements(SELECTORS.threadMenuButton);
     const fallback = primary.length
       ? primary
       : visibleElements(SELECTORS.threadMenuButtonFallback);
 
     return fallback
-      .map((el) => ({
-        el,
-        label: el.getAttribute("aria-label") || normalizedText(el),
-        top: el.getBoundingClientRect().top,
-      }))
+      .map((el) => {
+        const label = el.getAttribute("aria-label") || normalizedText(el);
+        const identity = getThreadIdentity(el) || label;
+        return {
+          el,
+          label,
+          identity,
+          top: el.getBoundingClientRect().top,
+        };
+      })
       .filter((item) => /^More options for/i.test(item.label || ""))
-      .filter((item) => !skipLabels.has(item.label))
+      .filter((item) => !skipIdentities.has(item.identity))
       .sort((a, b) => a.top - b.top);
   }
 
@@ -745,42 +739,130 @@ console.log("Current URL:", window.location.href);
     };
   }
 
+  function findMarketplaceHeaderMoreOptions() {
+    // 1. Direct search within a recognized Marketplace banner/container
+    const banner = findVisible(
+      '#marketplace-banner, [aria-label*="Marketplace" i], [data-testid*="marketplace" i], [role="region"][aria-label*="Marketplace" i]',
+    );
+    if (banner) {
+      const bannerBtn = visibleElements(
+        '[role="button"][aria-label="More options"], button[aria-label="More options"]',
+        banner,
+      ).find(
+        (el) =>
+          /^More options$/i.test(ownAccessibleText(el)) ||
+          el.getAttribute("aria-haspopup") === "dialog",
+      );
+      if (bannerBtn) return bannerBtn;
+    }
+
+    // 2. Main pane candidate search outside thread list
+    const threadList = document.querySelector(
+      '#thread-list, [role="navigation"], [aria-label="Conversations"]',
+    );
+    const threadListRight = threadList
+      ? threadList.getBoundingClientRect().right
+      : 0;
+
+    const candidates = visibleElements(
+      '[role="button"][aria-label="More options"][aria-haspopup="dialog"], button[aria-label="More options"][aria-haspopup="dialog"], [role="button"][aria-label="More options"], button[aria-label="More options"]',
+    )
+      .filter((el) => {
+        if (threadList && threadList.contains(el)) return false;
+        const aria = el.getAttribute("aria-label") || "";
+        if (/^More options for/i.test(aria)) return false;
+        return (
+          /^More options$/i.test(ownAccessibleText(el)) ||
+          el.getAttribute("aria-haspopup") === "dialog"
+        );
+      })
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        let score = 0;
+
+        // Contextual checks: is it near marketplace terms or item links?
+        const container =
+          el.closest(
+            'div, section, header, [role="region"], [role="dialog"], article, main',
+          ) || el.parentElement;
+        const containerText = container ? normalizedText(container) : "";
+
+        if (
+          /marketplace|listing|sold|in stock|pending|see details|view listing/i.test(
+            containerText,
+          )
+        ) {
+          score += 100;
+        }
+
+        if (container && container.querySelector('a[href*="/marketplace/"]')) {
+          score += 80;
+        }
+
+        // Semantic attributes
+        if (el.getAttribute("aria-haspopup") === "dialog") {
+          score += 30;
+        }
+
+        // Geometry as ranking heuristic only (main pane / header area)
+        if (r.x >= threadListRight) {
+          score += 20;
+        }
+        if (r.y >= 0 && r.y < window.innerHeight * 0.5) {
+          score += 10;
+        }
+        if (r.width > 60) {
+          score += 10;
+        }
+
+        return { el, score, r };
+      })
+      // Only consider candidates with meaningful marketplace context or main pane dialog button
+      .filter((c) => c.score >= 50)
+      .sort(
+        (a, b) =>
+          b.score - a.score || b.r.width - a.r.width || a.r.y - b.r.y,
+      );
+
+    return candidates[0] ? candidates[0].el : null;
+  }
+
   function isMarketplaceDetailView() {
     if (!/\/messages\/t\//i.test(location.pathname) && !isFixturePage()) return false;
 
-    const hasMarketplaceBanner = visibleElements(
-      'a[href*="/marketplace/item/"], [role="button"][aria-label="More options"][aria-haspopup="dialog"]',
+    // 1. Genuinely Marketplace item link inside conversation pane
+    const hasMarketplaceItemLink = visibleElements(
+      'a[href*="/marketplace/item/"], a[href*="/marketplace/"]',
     ).some((el) => {
-      const text = normalizedText(el);
-      return /marketplace|sold|see details|more options/i.test(text);
+      // Exclude generic global nav bar links outside conversation
+      if (
+        el.closest('nav, [role="navigation"]') &&
+        !el.closest(
+          'main, [role="main"], [aria-label*="Marketplace" i], #marketplace-banner',
+        )
+      ) {
+        return false;
+      }
+      return true;
     });
 
-    const hasConversationTitle =
-      visibleElements('[aria-label^="Conversation titled"]').length > 0;
+    // 2. Marketplace product banner or specific badges/labels in the conversation view
+    const hasMarketplaceProductBanner =
+      visibleElements(
+        '#marketplace-banner, [role="region"][aria-label*="Marketplace" i], [data-testid*="marketplace" i]',
+      ).some(isVisible) ||
+      visibleElements(
+        '.marketplace-sub, [aria-label*="listing" i], a[href*="/marketplace/item/"]',
+      ).some(isVisible);
 
-    return hasMarketplaceBanner || hasConversationTitle;
-  }
+    // 3. Marketplace specific header More Options
+    const hasMarketplaceSpecificHeader = Boolean(findMarketplaceHeaderMoreOptions());
 
-  function findMarketplaceHeaderMoreOptions() {
-    const candidates = visibleElements(
-      '[role="button"][aria-label="More options"][aria-haspopup="dialog"], button[aria-label="More options"]',
-    )
-      .filter((el) => /^More options$/i.test(ownAccessibleText(el)))
-      .filter((el) => {
-        const r = el.getBoundingClientRect();
-        // Marketplace product banner button: below the chat title, above message history, in the main pane.
-        return (
-          r.width > 120 && r.height >= 24 && r.x > 300 && r.y > 110 && r.y < 280
-        );
-      })
-      .sort((a, b) => {
-        const ar = a.getBoundingClientRect();
-        const br = b.getBoundingClientRect();
-        // Prefer the wide right-side product-banner More options button.
-        return br.width - ar.width || ar.y - br.y;
-      });
-
-    return candidates[0] || null;
+    return (
+      hasMarketplaceItemLink ||
+      hasMarketplaceProductBanner ||
+      hasMarketplaceSpecificHeader
+    );
   }
 
   async function ensureMarketplaceConversationVisible() {
@@ -1001,14 +1083,14 @@ console.log("Current URL:", window.location.href);
     return { status: "done", threadLabel: title };
   }
 
-  async function performOneThreadAction(actionConfig, skipLabels) {
-    const buttons = getThreadMenuButtons(skipLabels);
+  async function performOneThreadAction(actionConfig, skipIdentities) {
+    const buttons = getThreadMenuButtons(skipIdentities);
     const target = buttons[0];
 
     if (!target) {
       if (activeMode === "deleteBuySell") {
         const marketplaceResult =
-          await performCurrentMarketplaceConversationDelete(actionConfig, skipLabels);
+          await performCurrentMarketplaceConversationDelete(actionConfig, skipIdentities);
         if (marketplaceResult.status !== "empty") return marketplaceResult;
       }
 
@@ -1024,7 +1106,7 @@ console.log("Current URL:", window.location.href);
     const menuOpened = await openThreadMenu(target.el);
     if (!menuOpened) {
       console.warn("Could not open menu for:", threadLabel);
-      skipLabels.add(threadLabel);
+      skipIdentities.add(target.identity);
       pressEscape();
       await sleep(300);
       return { status: "skipped", reason: "menu_not_opened", threadLabel };
@@ -1040,7 +1122,7 @@ console.log("Current URL:", window.location.href);
         `${actionConfig.label} menu item not found for:`,
         threadLabel,
       );
-      skipLabels.add(threadLabel);
+      skipIdentities.add(target.identity);
       pressEscape();
       await sleep(300);
       return { status: "skipped", reason: "menu_item_missing", threadLabel };
@@ -1051,7 +1133,7 @@ console.log("Current URL:", window.location.href);
       announceDryRun(
         `Found thread: ${threadLabel.replace(/^More options for\s*/i, "")}. Found menu action: ${actionLabel}. Would stop before selecting it.`,
       );
-      skipLabels.add(threadLabel);
+      skipIdentities.add(target.identity);
       pressEscape();
       await sleep(200);
       dryRunInspectedCount += 1;
@@ -1090,7 +1172,7 @@ console.log("Current URL:", window.location.href);
           `Confirm button not found for ${actionConfig.label}:`,
           threadLabel,
         );
-        skipLabels.add(threadLabel);
+        skipIdentities.add(target.identity);
         pressEscape();
         await sleep(300);
         return { status: "skipped", reason: "confirm_missing", threadLabel };
@@ -1199,8 +1281,8 @@ console.log("Current URL:", window.location.href);
     }
     processedCount = 0;
     dryRunInspectedCount = 0;
-    const skippedLabels = new Set();
-    const inspectedLabels = new Set();
+    const skippedIdentities = new Set();
+    const inspectedIdentities = new Set();
 
     await loadSpeed();
 
@@ -1250,7 +1332,7 @@ console.log("Current URL:", window.location.href);
       while (shouldRun) {
         const result = await performOneThreadAction(
           actionConfig,
-          dryRunActive ? inspectedLabels : skippedLabels,
+          dryRunActive ? inspectedIdentities : skippedIdentities,
         );
 
         if (result.status === "empty") {
@@ -1283,8 +1365,10 @@ console.log("Current URL:", window.location.href);
               count: 0,
               inspectedCount: dryRunInspectedCount,
               dryRun: true,
-              message: `Dry run finished. Inspected ${dryRunInspectedCount} conversation(s).`,
+              message: `Dry run reached inspection limit of ${dryRunInspectedCount} thread(s).`,
             });
+            showStatus(`Dry run complete: ${dryRunInspectedCount} inspected`);
+            await sleep(1200);
             break;
           }
           await sleep(100);
@@ -1300,7 +1384,7 @@ console.log("Current URL:", window.location.href);
           });
 
           if (
-            skippedLabels.size >= Math.max(1, getThreadMenuButtons().length)
+            skippedIdentities.size >= Math.max(1, getThreadMenuButtons().length)
           ) {
             console.warn("All visible thread menus were skipped; stopping.");
             send(actionConfig.completeAction, {
@@ -1665,6 +1749,8 @@ console.log("Current URL:", window.location.href);
     isFixturePage,
     isBusy: () => busy,
     isMarketplaceFolder,
+    isMarketplaceDetailView,
+    findMarketplaceHeaderMoreOptions,
     isArchivedFolder,
     openInboxMessages,
     openMarketplaceMessages,

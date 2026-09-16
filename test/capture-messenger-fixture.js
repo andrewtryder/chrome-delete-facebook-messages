@@ -64,6 +64,15 @@
   let marketplaceCounter = 0;
   let idCounter = 0;
 
+  function resetCaptureState() {
+    peopleMap.clear();
+    marketplaceMap.clear();
+    idMap.clear();
+    personCounter = 0;
+    marketplaceCounter = 0;
+    idCounter = 0;
+  }
+
   function normalizeIdToken(token) {
     const trimmed = String(token || "").trim();
     if (!trimmed) return "";
@@ -131,8 +140,16 @@
       return "Marketplace";
     }
 
-    if (/delete chat|delete conversation|cannot be undone|delete your copy/i.test(text)) {
-      return text;
+    if (/delete chat/i.test(text)) {
+      return "Delete chat";
+    }
+
+    if (/delete conversation/i.test(text)) {
+      return "Delete conversation";
+    }
+
+    if (/cannot be undone|delete your copy/i.test(text)) {
+      return "[delete-warning]";
     }
 
     return "[redacted]";
@@ -235,6 +252,16 @@
   }
 
   function validate(data) {
+    if (!data || typeof data !== "object") {
+      throw new Error("Fixture validation failed: fixture data must be an object.");
+    }
+    if (typeof data.schema !== "number" || data.schema < 1) {
+      throw new Error(`Fixture validation failed: missing or invalid schema version (${data.schema}).`);
+    }
+    if (!Array.isArray(data.structures)) {
+      throw new Error("Fixture validation failed: missing structures array.");
+    }
+
     const serialized = JSON.stringify(data);
     const violations = [];
     for (const pattern of SUSPICIOUS_PATTERNS) {
@@ -256,6 +283,8 @@
     if (typeof document === "undefined") {
       throw new Error("capture() must be run in a browser document context.");
     }
+
+    resetCaptureState();
 
     // Capture highest-priority overlays (menus & dialogs) first so portals are never truncated
     const prioritySelectors = [
@@ -455,6 +484,7 @@
 
   return {
     capture,
+    resetCaptureState,
     inspectMarketplace,
     validate,
     download,

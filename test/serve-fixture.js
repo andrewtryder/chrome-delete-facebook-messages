@@ -29,8 +29,13 @@ const server = http.createServer((req, res) => {
   }
 
   if (!fs.existsSync(targetFile) || !fs.statSync(targetFile).isFile()) {
-    res.writeHead(404).end("Not Found");
-    return;
+    const mockFallback = path.resolve(root, `./test/mock-messenger${relativePath}`);
+    if (fs.existsSync(mockFallback) && fs.statSync(mockFallback).isFile()) {
+      targetFile = mockFallback;
+    } else {
+      res.writeHead(404).end("Not Found");
+      return;
+    }
   }
 
   const ext = path.extname(targetFile).toLowerCase();

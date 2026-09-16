@@ -654,5 +654,66 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     expect(model.menu.labels.delete).toBe("Delete chat");
     expect(model.dialog).toBeDefined();
     expect(model.dialog.labels.confirmDelete).toBe("Delete chat");
+    expect(model.generatedFromHash).toBeDefined();
+  });
+
+  test("28. Regular chat with conversation title is not misclassified as Marketplace detail view", async ({ page }) => {
+    // Add a normal Messenger title heading/region (e.g. Conversation titled Andrew Smith) without marketplace context
+    await page.evaluate(() => {
+      const titleEl = document.createElement("div");
+      titleEl.id = "mock-normal-chat-title";
+      titleEl.setAttribute("aria-label", "Conversation titled Andrew Smith");
+      titleEl.textContent = "Andrew Smith";
+      document.querySelector("main")?.appendChild(titleEl);
+    });
+
+    const isMarketplace = await page.evaluate(() => {
+      return window.FBChatsCleanerDebug.isMarketplaceDetailView();
+    });
+
+    expect(isMarketplace).toBe(false);
+
+    // Clean up
+    await page.evaluate(() => {
+      document.querySelector("#mock-normal-chat-title")?.remove();
+    });
+  });
+
+  test("29. Fixture sanitizer canonicalizes delete warnings and prevents personal name leakage", () => {
+    const { sanitizeString } = require("./capture-messenger-fixture");
+
+    // Standard control words preserved
+    expect(sanitizeString("Delete chat")).toBe("Delete chat");
+    expect(sanitizeString("Delete conversation")).toBe("Delete conversation");
+
+    // Strings with embedded personal names MUST be canonicalized, NOT returned raw
+    expect(sanitizeString("Delete chat with Andrew Smith")).toBe("Delete chat");
+    expect(sanitizeString("Delete your copy of the conversation with Andrew Smith")).toBe("[delete-warning]");
+    expect(sanitizeString("Once deleted, messages cannot be undone for Andrew Smith")).toBe("[delete-warning]");
+
+    // Verify raw name never appears anywhere in the sanitized outputs
+    expect(sanitizeString("Delete chat with Andrew Smith")).not.toContain("Andrew Smith");
+    expect(sanitizeString("Delete your copy of the conversation with Andrew Smith")).not.toContain("Andrew Smith");
+  });
+
+  test("30. Dry-run inspects both duplicate-name threads distinctly without suppression", async ({ page }) => {
+    // Our fixture contains two threads named "Person 002"
+    // Launch dry-run over 5 threads
+    await dispatchExtensionMessage(page, "deleteMsgs", { dryRun: true, maxActions: 5 });
+
+    await page.waitForFunction(() =>
+      window._sentMessages.some((m) => m.action === "noMessagesToDlt" || m.inspectedCount >= 5),
+    );
+
+    const dryRunEvents = await page.evaluate(() =>
+      (window._sentMessages || []).filter((m) => m.action === "dryRunProgress"),
+    );
+
+    const person002Events = dryRunEvents.filter(
+      (e) => e.threadLabel && e.threadLabel.includes("Person 002"),
+    );
+
+    // Both distinct Person 002 threads should be inspected
+    expect(person002Events.length).toBe(2);
   });
 });

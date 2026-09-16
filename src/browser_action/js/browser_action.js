@@ -68,7 +68,17 @@ app.controller("ctrl", function ($scope) {
 
   function activeTab(callback) {
     chrome.tabs.query({ active: true, currentWindow: true }, function (tabs) {
-      callback(tabs && tabs[0] ? tabs[0] : null);
+      var tab = tabs && tabs[0];
+      if (!tab || (tab.url && tab.url.startsWith("chrome-extension:"))) {
+        chrome.tabs.query({}, function (allTabs) {
+          var target = (allTabs || []).find(function (t) {
+            return t.url && $scope.checkUrl(t.url);
+          });
+          callback(target || tab || null);
+        });
+        return;
+      }
+      callback(tab || null);
     });
   }
 
@@ -194,6 +204,7 @@ app.controller("ctrl", function ($scope) {
     return (
       /facebook\.com\/(messages|latest\/inbox)/i.test(url || "") ||
       /messenger\.com/i.test(url || "") ||
+      /(?:127\.0\.0\.1|localhost):4173/i.test(url || "") ||
       /(?:127\.0\.0\.1|localhost):\d+\/test\/mock-messenger/i.test(url || "")
     );
   };
@@ -233,6 +244,14 @@ app.controller("ctrl", function ($scope) {
       });
     });
   };
+
+  var checkInterval = setInterval(function () {
+    if ($scope.onFB) {
+      clearInterval(checkInterval);
+    } else {
+      $scope.checkActivePage();
+    }
+  }, 400);
 
   $scope.updatePGscope = function (notOnFBP, onFBP, loadingMPage) {
     safeApply(function () {

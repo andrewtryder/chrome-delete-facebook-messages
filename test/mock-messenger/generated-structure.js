@@ -3,7 +3,7 @@
   "use strict";
   const model = {
   "source": "messenger-structure.json",
-  "generatedAt": "2026-09-16T12:38:18.129Z",
+  "generatedFromHash": "11fb58ec0960d04a856c361825612b1aacb506dc6d4dcd516490f95d318d1676",
   "threadMenuButton": {
     "tag": "div",
     "role": "button",
@@ -33,7 +33,7 @@
     "ariaHaspopup": "menu"
   },
   "marketplaceBanner": {
-    "dialogRole": "dialog",
+    "dialogRole": "button",
     "ariaLabelPattern": "Conversation titled {name}",
     "moreOptions": {
       "role": "button",

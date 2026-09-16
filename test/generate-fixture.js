@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const { validate, normalizeStructureIds } = require("./capture-messenger-fixture");
 
 const STRUCTURE_PATH = path.resolve(__dirname, "fixtures/messenger-structure.json");
@@ -117,9 +118,9 @@ function extractModel(capturedData) {
   for (const s of structures) {
     walk(s, (n) => {
       const label = n.attrs?.["aria-label"] || "";
-      if (/^Conversation titled/i.test(label) && n.attrs?.role === "dialog") {
+      if (/^Conversation titled/i.test(label)) {
         marketplaceBannerModel = {
-          dialogRole: "dialog",
+          dialogRole: n.attrs?.role || "dialog",
           ariaLabelPattern: "Conversation titled {name}",
           moreOptions: {
             role: "button",
@@ -130,6 +131,7 @@ function extractModel(capturedData) {
         };
       }
     });
+    if (marketplaceBannerModel) break;
   }
   if (!marketplaceBannerModel) {
     marketplaceBannerModel = {
@@ -144,8 +146,36 @@ function extractModel(capturedData) {
     };
   }
 
-  // 5. Menu and Dialog semantics
-  const menuModel = {
+  // 5. Menu semantics (from captured structures if available)
+  let capturedMenu = null;
+  for (const s of structures) {
+    walk(s, (n) => {
+      if (n.attrs?.role === "menu") {
+        const itemLabels = [];
+        walk(n, (child) => {
+          if (child.attrs?.role === "menuitem" || child.attrs?.role === "menuitemradio") {
+            const l = child.attrs?.["aria-label"] || child.text || "";
+            if (l) itemLabels.push(l);
+          }
+        });
+        if (itemLabels.length > 0) {
+          capturedMenu = {
+            menuRole: n.attrs.role,
+            menuId: n.attrs.id || "thread-list-menu-buttons",
+            itemRole: "menuitem",
+            itemTag: "button",
+            labels: {
+              delete: itemLabels.find((l) => /delete/i.test(l)) || "Delete chat",
+              archive: itemLabels.find((l) => /archive/i.test(l)) || "Archive",
+              restore: itemLabels.find((l) => /restore|unarchive/i.test(l)) || "Restore",
+            },
+          };
+        }
+      }
+    });
+    if (capturedMenu) break;
+  }
+  const menuModel = capturedMenu || {
     menuRole: "menu",
     menuId: "thread-list-menu-buttons",
     itemRole: "menuitem",
@@ -157,7 +187,33 @@ function extractModel(capturedData) {
     },
   };
 
-  const dialogModel = {
+  // 6. Dialog semantics (from captured structures if available)
+  let capturedDialog = null;
+  for (const s of structures) {
+    walk(s, (n) => {
+      if (n.attrs?.role === "dialog" || n.attrs?.role === "alertdialog") {
+        const btnLabels = [];
+        walk(n, (child) => {
+          if (child.attrs?.role === "button" || child.tag === "button") {
+            const l = child.attrs?.["aria-label"] || child.text || "";
+            if (l) btnLabels.push(l);
+          }
+        });
+        if (btnLabels.length > 0) {
+          capturedDialog = {
+            dialogRole: n.attrs.role || "dialog",
+            labels: {
+              confirmDelete: btnLabels.find((l) => /delete/i.test(l)) || "Delete chat",
+              cancel: btnLabels.find((l) => /cancel/i.test(l)) || "Cancel",
+              unrelatedAction: btnLabels.find((l) => /learn|help|info/i.test(l)) || "Learn more",
+            },
+          };
+        }
+      }
+    });
+    if (capturedDialog) break;
+  }
+  const dialogModel = capturedDialog || {
     dialogRole: "dialog",
     labels: {
       confirmDelete: "Delete chat",
@@ -166,9 +222,14 @@ function extractModel(capturedData) {
     },
   };
 
+  const contentHash = crypto
+    .createHash("sha256")
+    .update(JSON.stringify(capturedData))
+    .digest("hex");
+
   return {
     source: "messenger-structure.json",
-    generatedAt: new Date().toISOString(),
+    generatedFromHash: contentHash,
     threadMenuButton: threadMenuButtonModel,
     marketplaceNav: marketplaceNavModel,
     settingsButton: settingsModel,
