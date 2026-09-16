@@ -8,6 +8,7 @@ console.log("Current URL:", window.location.href);
   // Runtime state
   // ---------------------------------------------------------------------------
   let processedCount = 0;
+  let dryRunInspectedCount = 0;
   let shouldRun = false;
   let busy = false;
   let activeMode = null;
@@ -515,9 +516,15 @@ console.log("Current URL:", window.location.href);
     showStatus(`DRY RUN — ${message}`);
   }
 
-  function dryRunResult(threadLabel, reason) {
+  function dryRunResult(threadLabel, reason, actionLabel) {
     pressEscape();
-    return { status: "skipped", reason, threadLabel, dryRun: true };
+    return {
+      status: "inspected",
+      reason,
+      threadLabel,
+      actionLabel,
+      dryRun: true,
+    };
   }
 
   // ---------------------------------------------------------------------------
@@ -882,10 +889,23 @@ console.log("Current URL:", window.location.href);
     }
 
     if (dryRunActive) {
+      const actionLabel = normalizedText(actionItem) || actionConfig.label;
       announceDryRun(
-        `Found Marketplace thread: ${title}. Found menu action: ${normalizedText(actionItem) || actionConfig.label}. Would stop before selecting it.`,
+        `Found Marketplace thread: ${title}. Found menu action: ${actionLabel}. Would stop before selecting it.`,
       );
-      return dryRunResult(title, "dry_run_action_not_selected");
+      skipLabels.add(title);
+      pressEscape();
+      await sleep(200);
+      dryRunInspectedCount += 1;
+      send("dryRunProgress", {
+        mode: activeMode,
+        count: 0,
+        inspectedCount: dryRunInspectedCount,
+        threadLabel: title,
+        actionLabel,
+      });
+      showStatus(`DRY RUN — Inspected Marketplace: ${title}`);
+      return dryRunResult(title, "dry_run_action_not_selected", actionLabel);
     }
 
     console.log(
@@ -1027,12 +1047,25 @@ console.log("Current URL:", window.location.href);
     }
 
     if (dryRunActive) {
+      const actionLabel = normalizedText(actionItem) || actionConfig.label;
       announceDryRun(
-        `Found thread: ${threadLabel.replace(/^More options for\s*/i, "")}. Found menu action: ${normalizedText(actionItem) || actionConfig.label}. Would stop before selecting it.`,
+        `Found thread: ${threadLabel.replace(/^More options for\s*/i, "")}. Found menu action: ${actionLabel}. Would stop before selecting it.`,
       );
-      // Selecting an action may become stateful in a future Messenger UI, so
-      // dry-run deliberately does not open a destructive confirmation dialog.
-      return dryRunResult(threadLabel, "dry_run_action_not_selected");
+      skipLabels.add(threadLabel);
+      pressEscape();
+      await sleep(200);
+      dryRunInspectedCount += 1;
+      send("dryRunProgress", {
+        mode: activeMode,
+        count: 0,
+        inspectedCount: dryRunInspectedCount,
+        threadLabel,
+        actionLabel,
+      });
+      showStatus(
+        `DRY RUN — Inspected ${dryRunInspectedCount}: ${threadLabel.replace(/^More options for\s*/i, "")}`,
+      );
+      return dryRunResult(threadLabel, "dry_run_action_not_selected", actionLabel);
     }
 
     console.log(
@@ -1152,16 +1185,22 @@ console.log("Current URL:", window.location.href);
     shouldRun = true;
     activeMode = mode;
     dryRunActive = Boolean(options.dryRun);
-    // The fixture can opt into an explicit test limit. A real page gets a
-    // conservative one-action ceiling unless the caller explicitly supplies
-    // a smaller/larger development limit.
-    maxActions = Number.isFinite(Number(options.maxActions))
-      ? Math.max(1, Number(options.maxActions))
-      : isFixturePage()
-        ? Infinity
-        : 1;
+
+    // Production default behavior remains unlimited (Infinity) unless explicitly constrained.
+    // Callers may pass an explicit maxActions (e.g. for testing specific batches), or enable
+    // an explicit development safety option (developmentSafetyLimit or safeTestMode).
+    const requestedMax = Number(options.maxActions);
+    if (Number.isFinite(requestedMax) && requestedMax > 0) {
+      maxActions = Math.floor(requestedMax);
+    } else if (options.developmentSafetyLimit || options.safeTestMode) {
+      maxActions = 1;
+    } else {
+      maxActions = Infinity;
+    }
     processedCount = 0;
+    dryRunInspectedCount = 0;
     const skippedLabels = new Set();
+    const inspectedLabels = new Set();
 
     await loadSpeed();
 
@@ -1184,32 +1223,72 @@ console.log("Current URL:", window.location.href);
           await openMarketplaceMessages();
           await sleep(500);
         }
+        if (!isMarketplaceFolder() && !isMarketplaceDetailView()) {
+          console.warn("Could not confirm Marketplace folder; aborting deleteBuySell for safety.");
+          send("automationError", {
+            mode,
+            message: "Could not confirm Marketplace messages folder. Aborting to protect inbox messages.",
+          });
+          return;
+        }
       } else if (mode === "delete" || mode === "archive") {
         if (isMarketplaceFolder() || isMarketplaceDetailView() || isArchivedFolder()) {
           showStatus("Opening regular messages...");
           await openInboxMessages();
           await sleep(500);
         }
+        if (isMarketplaceFolder() || isMarketplaceDetailView()) {
+          console.warn("Still in Marketplace view; aborting regular action for safety.");
+          send("automationError", {
+            mode,
+            message: "Cannot execute regular action while in Marketplace view. Aborting for safety.",
+          });
+          return;
+        }
       }
 
       while (shouldRun) {
         const result = await performOneThreadAction(
           actionConfig,
-          skippedLabels,
+          dryRunActive ? inspectedLabels : skippedLabels,
         );
 
         if (result.status === "empty") {
-          console.log(actionConfig.emptyMessage);
+          const completionMessage = dryRunActive
+            ? `Dry run finished. Inspected ${dryRunInspectedCount} conversation(s). No actions were executed.`
+            : actionConfig.emptyMessage;
+          console.log(completionMessage);
           send(actionConfig.completeAction, {
             mode,
             count: processedCount,
-            message: actionConfig.emptyMessage,
+            inspectedCount: dryRunInspectedCount,
+            dryRun: dryRunActive,
+            message: completionMessage,
           });
           showStatus(
-            `${actionConfig.emptyMessage}. Total: ${formatNumber(processedCount)}`,
+            dryRunActive
+              ? `Dry run complete: ${dryRunInspectedCount} inspected`
+              : `${actionConfig.emptyMessage}. Total: ${formatNumber(processedCount)}`,
           );
           await sleep(1200);
           break;
+        }
+
+        if (result.status === "inspected") {
+          if (dryRunInspectedCount >= maxActions) {
+            console.log(`[DRY RUN] Reached inspection limit of ${maxActions} thread(s).`);
+            shouldRun = false;
+            send(actionConfig.completeAction, {
+              mode,
+              count: 0,
+              inspectedCount: dryRunInspectedCount,
+              dryRun: true,
+              message: `Dry run finished. Inspected ${dryRunInspectedCount} conversation(s).`,
+            });
+            break;
+          }
+          await sleep(100);
+          continue;
         }
 
         if (result.status === "skipped") {
@@ -1264,6 +1343,7 @@ console.log("Current URL:", window.location.href);
       activeMode = null;
       dryRunActive = false;
       maxActions = Infinity;
+      dryRunInspectedCount = 0;
       hideStatus();
     }
   }
@@ -1275,12 +1355,41 @@ console.log("Current URL:", window.location.href);
         document.querySelector("#marketplace-banner")?.style.display !== "none"
       );
     }
-    return (
-      visibleElements('a[href*="/marketplace/"]').some(isVisible) ||
-      visibleElements('h1, h2, [role="heading"]').some((el) =>
-        /Marketplace/i.test(normalizedText(el)),
-      )
-    );
+
+    // Determine Marketplace state using Messenger-specific context only.
+    // Never rely on generic site-wide Facebook marketplace links (e.g. top nav a[href*="/marketplace/"]).
+
+    // 1. Messenger route state
+    if (/\/messages\/marketplace/i.test(location.pathname)) {
+      return true;
+    }
+
+    // 2. Active Messenger navigation folder item specifically for Marketplace
+    const activeNavMarketplace = visibleElements(
+      'nav a[href*="/marketplace/"], [role="navigation"] a[href*="/marketplace/"]',
+    ).some((el) => {
+      const isCurrent =
+        el.getAttribute("aria-current") === "page" ||
+        el.getAttribute("aria-selected") === "true";
+      const hasActiveClass = /(?:^|\s)(?:active|selected)(?:\s|$)/i.test(
+        el.className || "",
+      );
+      return isCurrent || hasActiveClass;
+    });
+    if (activeNavMarketplace) return true;
+
+    // 3. Messenger chats list heading specifically indicating Marketplace
+    const hasMarketplaceHeading = visibleElements(
+      'div[role="navigation"] h1, div[role="navigation"] h2, div[role="navigation"] [role="heading"], [aria-label="Chats"] [role="heading"], [aria-label="Chats"] h1, [aria-label="Chats"] h2',
+    ).some((el) => /^Marketplace$/i.test(normalizedText(el)));
+    if (hasMarketplaceHeading) return true;
+
+    // 4. In-conversation Marketplace listing banner
+    if (isMarketplaceDetailView()) {
+      return true;
+    }
+
+    return false;
   }
 
   function isArchivedFolder() {
@@ -1290,8 +1399,10 @@ console.log("Current URL:", window.location.href);
         false
       );
     }
-    return visibleElements('h1, h2, [role="heading"]').some((el) =>
-      /Archived chats/i.test(normalizedText(el)),
+    return visibleElements(
+      'div[role="navigation"] h1, div[role="navigation"] h2, div[role="navigation"] [role="heading"], [aria-label="Chats"] [role="heading"], h1, h2, [role="heading"]',
+    ).some((el) =>
+      /^Archived chats/i.test(normalizedText(el)),
     );
   }
 
@@ -1553,5 +1664,11 @@ console.log("Current URL:", window.location.href);
     stop: stopAutomation,
     isFixturePage,
     isBusy: () => busy,
+    isMarketplaceFolder,
+    isArchivedFolder,
+    openInboxMessages,
+    openMarketplaceMessages,
+    getInspectedCount: () => dryRunInspectedCount,
+    getProcessedCount: () => processedCount,
   };
 })();
