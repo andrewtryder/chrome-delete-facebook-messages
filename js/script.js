@@ -12,6 +12,8 @@ console.log("Current URL:", window.location.href);
   let busy = false;
   let activeMode = null;
   let actionDelaySeconds = 5;
+  let dryRunActive = false;
+  let maxActions = Infinity;
 
   const SPEED_SECONDS = {
     slow: 18.0,
@@ -161,6 +163,12 @@ console.log("Current URL:", window.location.href);
   }
 
   async function actionDelay() {
+    // The fixture is an explicitly marked local test target; no real-site
+    // timing assumptions are needed there.
+    if (isFixturePage()) {
+      await sleep(20);
+      return;
+    }
     const baseMs = Math.max(250, actionDelaySeconds * 1000);
     const jitterMs = Math.floor(350 + Math.random() * 900);
     const totalMs = baseMs + jitterMs;
@@ -339,7 +347,6 @@ console.log("Current URL:", window.location.href);
       "mousedown",
       "pointerup",
       "mouseup",
-      "click",
     ];
 
     for (const type of events) {
@@ -365,9 +372,10 @@ console.log("Current URL:", window.location.href);
       );
     }
 
-    if (typeof el.click === "function") {
-      el.click();
-    }
+    // Dispatch pointer/mouse affordance events, then exactly one logical click.
+    // Do not dispatch a synthetic click *and* call click(): React and native
+    // controls can treat those as two separate user actions.
+    if (typeof el.click === "function") el.click();
 
     return true;
   }
@@ -491,10 +499,25 @@ console.log("Current URL:", window.location.href);
 
   function isMessengerPage() {
     return (
+      document.documentElement.dataset.fbCleanerFixture === "true" ||
       /(^|\.)facebook\.com\/messages/i.test(
         location.hostname + location.pathname,
       ) || /(^|\.)messenger\.com$/i.test(location.hostname)
     );
+  }
+
+  function isFixturePage() {
+    return document.documentElement.dataset.fbCleanerFixture === "true";
+  }
+
+  function announceDryRun(message) {
+    console.warn(`[DRY RUN] ${message}`);
+    showStatus(`DRY RUN — ${message}`);
+  }
+
+  function dryRunResult(threadLabel, reason) {
+    pressEscape();
+    return { status: "skipped", reason, threadLabel, dryRun: true };
   }
 
   // ---------------------------------------------------------------------------
@@ -716,7 +739,7 @@ console.log("Current URL:", window.location.href);
   }
 
   function isMarketplaceDetailView() {
-    if (!/\/messages\/t\//i.test(location.pathname)) return false;
+    if (!/\/messages\/t\//i.test(location.pathname) && !isFixturePage()) return false;
 
     const hasMarketplaceBanner = visibleElements(
       'a[href*="/marketplace/item/"], [role="button"][aria-label="More options"][aria-haspopup="dialog"]',
@@ -756,29 +779,20 @@ console.log("Current URL:", window.location.href);
   async function ensureMarketplaceConversationVisible() {
     if (findMarketplaceHeaderMoreOptions()) return true;
 
-    const marketplaceEntry = visibleElements(SELECTORS.marketplaceCandidate)
-      .filter((el) => {
-        const r = el.getBoundingClientRect();
-        if (r.x > 360 || r.y < 100) return false;
-        return (
-          /^Marketplace\b/i.test(ownAccessibleText(el)) ||
-          /^Marketplace\b/i.test(normalizedText(el))
-        );
-      })
-      .sort(
-        (a, b) => a.getBoundingClientRect().y - b.getBoundingClientRect().y,
-      )[0];
+    const firstThread = visibleElements(
+      '#thread-list [role="listitem"], #thread-list article, div[role="gridcell"], a[href*="/messages/t/"]',
+    ).find(isVisible);
 
-    if (!marketplaceEntry) return false;
+    if (!firstThread) return false;
 
     console.log(
-      "Reopening Marketplace folder:",
-      normalizedText(marketplaceEntry),
+      "Opening Marketplace conversation from list:",
+      normalizedText(firstThread),
     );
-    realClick(marketplaceEntry);
+    realClick(firstThread);
 
     return Boolean(
-      await waitFor(() => findMarketplaceHeaderMoreOptions(), 4000, 150),
+      await waitFor(() => findMarketplaceHeaderMoreOptions(), 2000, 100),
     );
   }
 
@@ -820,7 +834,7 @@ console.log("Current URL:", window.location.href);
     return opened;
   }
 
-  async function performCurrentMarketplaceConversationDelete(actionConfig) {
+  async function performCurrentMarketplaceConversationDelete(actionConfig, skipLabels) {
     if (!isMarketplaceDetailView()) {
       const reopened = await ensureMarketplaceConversationVisible();
       if (!reopened) return { status: "empty" };
@@ -830,6 +844,11 @@ console.log("Current URL:", window.location.href);
       visibleElements('[aria-label^="Conversation titled"]').map(
         normalizedText,
       )[0] || "current Marketplace conversation";
+
+    if (skipLabels && skipLabels.has(title)) {
+      console.log("Marketplace conversation already processed:", title);
+      return { status: "empty" };
+    }
     showStatus(
       `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Opening Marketplace options`,
     );
@@ -860,6 +879,13 @@ console.log("Current URL:", window.location.href);
         reason: "marketplace_delete_item_missing",
         threadLabel: title,
       };
+    }
+
+    if (dryRunActive) {
+      announceDryRun(
+        `Found Marketplace thread: ${title}. Found menu action: ${normalizedText(actionItem) || actionConfig.label}. Would stop before selecting it.`,
+      );
+      return dryRunResult(title, "dry_run_action_not_selected");
     }
 
     console.log(
@@ -946,18 +972,10 @@ console.log("Current URL:", window.location.href);
       console.debug("Could not update trialsFast:", err);
     }
 
-    await waitFor(
-      () =>
-        findMarketplaceHeaderMoreOptions() ||
-        !/\/messages\/t\//i.test(location.pathname),
-      4000,
-      200,
-    );
     await actionDelay();
 
-    // If Facebook drops us back to the Marketplace folder or a blank state, reopen the next current conversation.
-    if (shouldRun) {
-      await ensureMarketplaceConversationVisible();
+    if (skipLabels) {
+      skipLabels.add(title);
     }
 
     return { status: "done", threadLabel: title };
@@ -970,7 +988,7 @@ console.log("Current URL:", window.location.href);
     if (!target) {
       if (activeMode === "deleteBuySell") {
         const marketplaceResult =
-          await performCurrentMarketplaceConversationDelete(actionConfig);
+          await performCurrentMarketplaceConversationDelete(actionConfig, skipLabels);
         if (marketplaceResult.status !== "empty") return marketplaceResult;
       }
 
@@ -1006,6 +1024,15 @@ console.log("Current URL:", window.location.href);
       pressEscape();
       await sleep(300);
       return { status: "skipped", reason: "menu_item_missing", threadLabel };
+    }
+
+    if (dryRunActive) {
+      announceDryRun(
+        `Found thread: ${threadLabel.replace(/^More options for\s*/i, "")}. Found menu action: ${normalizedText(actionItem) || actionConfig.label}. Would stop before selecting it.`,
+      );
+      // Selecting an action may become stateful in a future Messenger UI, so
+      // dry-run deliberately does not open a destructive confirmation dialog.
+      return dryRunResult(threadLabel, "dry_run_action_not_selected");
     }
 
     console.log(
@@ -1101,7 +1128,7 @@ console.log("Current URL:", window.location.href);
     return { status: "done", threadLabel };
   }
 
-  async function runThreadLoop(mode) {
+  async function runThreadLoop(mode, options = {}) {
     if (busy) {
       console.warn("Automation is already running:", activeMode);
       return;
@@ -1124,15 +1151,47 @@ console.log("Current URL:", window.location.href);
     busy = true;
     shouldRun = true;
     activeMode = mode;
+    dryRunActive = Boolean(options.dryRun);
+    // The fixture can opt into an explicit test limit. A real page gets a
+    // conservative one-action ceiling unless the caller explicitly supplies
+    // a smaller/larger development limit.
+    maxActions = Number.isFinite(Number(options.maxActions))
+      ? Math.max(1, Number(options.maxActions))
+      : isFixturePage()
+        ? Infinity
+        : 1;
     processedCount = 0;
     const skippedLabels = new Set();
 
     await loadSpeed();
 
-    showStatus(`${actionConfig.popupLabel}: starting...`);
-    send(actionConfig.startedAction, { mode });
+    if (dryRunActive) {
+      announceDryRun(
+        `${actionConfig.popupLabel} is active. No menu action or confirmation will be clicked.`,
+      );
+    } else if (Number.isFinite(maxActions)) {
+      console.warn(`[SAFETY LIMIT] Automation will stop after ${maxActions} action(s).`);
+      showStatus(`${actionConfig.popupLabel}: safety limit ${maxActions} action(s)`);
+    } else {
+      showStatus(`${actionConfig.popupLabel}: starting...`);
+    }
+    send(actionConfig.startedAction, { mode, dryRun: dryRunActive, maxActions });
 
     try {
+      if (mode === "deleteBuySell" && !isMarketplaceDetailView()) {
+        if (!isMarketplaceFolder()) {
+          showStatus("Opening Marketplace messages...");
+          await openMarketplaceMessages();
+          await sleep(500);
+        }
+      } else if (mode === "delete" || mode === "archive") {
+        if (isMarketplaceFolder() || isMarketplaceDetailView() || isArchivedFolder()) {
+          showStatus("Opening regular messages...");
+          await openInboxMessages();
+          await sleep(500);
+        }
+      }
+
       while (shouldRun) {
         const result = await performOneThreadAction(
           actionConfig,
@@ -1177,6 +1236,16 @@ console.log("Current URL:", window.location.href);
             break;
           }
         }
+
+        if (processedCount >= maxActions) {
+          console.warn(`[SAFETY LIMIT] Reached ${maxActions} completed action(s).`);
+          shouldRun = false;
+          send(actionConfig.completeAction, {
+            mode,
+            count: processedCount,
+            message: `Safety limit reached after ${processedCount} action(s).`,
+          });
+        }
       }
     } catch (err) {
       console.error(`${actionConfig.label} loop failed:`, err);
@@ -1193,8 +1262,66 @@ console.log("Current URL:", window.location.href);
       shouldRun = false;
       busy = false;
       activeMode = null;
+      dryRunActive = false;
+      maxActions = Infinity;
       hideStatus();
     }
+  }
+
+  function isMarketplaceFolder() {
+    if (isFixturePage()) {
+      return (
+        document.querySelector("#marketplace-entry")?.classList.contains("active") ||
+        document.querySelector("#marketplace-banner")?.style.display !== "none"
+      );
+    }
+    return (
+      visibleElements('a[href*="/marketplace/"]').some(isVisible) ||
+      visibleElements('h1, h2, [role="heading"]').some((el) =>
+        /Marketplace/i.test(normalizedText(el)),
+      )
+    );
+  }
+
+  function isArchivedFolder() {
+    if (isFixturePage()) {
+      return (
+        document.querySelector("#fixture-status")?.textContent?.includes("Archived") ||
+        false
+      );
+    }
+    return visibleElements('h1, h2, [role="heading"]').some((el) =>
+      /Archived chats/i.test(normalizedText(el)),
+    );
+  }
+
+  async function openInboxMessages() {
+    if (!isMessengerPage()) return false;
+
+    if (isFixturePage()) {
+      const inboxNav = document.querySelector("#inbox-entry");
+      if (inboxNav) {
+        realClick(inboxNav);
+        await sleep(300);
+        return true;
+      }
+    }
+
+    const candidate = visibleElements(
+      'a[aria-label="Chats"], [role="link"][aria-label="Chats"], a[href="/messages/"], a[href="/messages/t/"], [aria-label="Back to chats"], [aria-label="Back"], [role="button"][aria-label="Back"]',
+    ).find((el) => {
+      const label = (el.getAttribute("aria-label") || "").trim();
+      const text = normalizedText(el);
+      return /^(Chats|Back to chats|Back)$/i.test(label) || /^(Chats|Inbox)$/i.test(text);
+    });
+
+    if (candidate) {
+      console.log("Navigating back to regular chats/inbox:", candidate);
+      realClick(candidate);
+      await sleep(500);
+      return true;
+    }
+    return false;
   }
 
   async function openMarketplaceMessages() {
@@ -1322,14 +1449,30 @@ console.log("Current URL:", window.location.href);
     const action = request && request.action;
     console.log("📨 Message received:", action);
 
+    const loopActions = new Set([
+      "deleteMsgs",
+      "archiveMsgs",
+      "deleteBuySell",
+      "unarchiveAll",
+    ]);
+    if (loopActions.has(action) && busy) {
+      sendResponse &&
+        sendResponse({
+          ok: false,
+          message: `Automation is already running (${activeMode || "unknown"}).`,
+          busy: true,
+        });
+      return false;
+    }
+
     switch (action) {
       case "deleteMsgs":
-        runThreadLoop("delete");
+        runThreadLoop("delete", request);
         sendResponse && sendResponse({ ok: true });
         return true;
 
       case "archiveMsgs":
-        runThreadLoop("archive");
+        runThreadLoop("archive", request);
         sendResponse && sendResponse({ ok: true });
         return true;
 
@@ -1339,7 +1482,7 @@ console.log("Current URL:", window.location.href);
         return true;
 
       case "deleteBuySell":
-        runThreadLoop("deleteBuySell");
+        runThreadLoop("deleteBuySell", request);
         sendResponse && sendResponse({ ok: true });
         return true;
 
@@ -1349,7 +1492,7 @@ console.log("Current URL:", window.location.href);
         return true;
 
       case "unarchiveAll":
-        runThreadLoop("unarchive");
+        runThreadLoop("unarchive", request);
         sendResponse && sendResponse({ ok: true });
         return true;
 
@@ -1408,5 +1551,7 @@ console.log("Current URL:", window.location.href);
     selectors: SELECTORS,
     snapshot: getDebugSnapshot,
     stop: stopAutomation,
+    isFixturePage,
+    isBusy: () => busy,
   };
 })();

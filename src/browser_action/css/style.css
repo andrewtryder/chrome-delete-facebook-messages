@@ -790,3 +790,19 @@ body.dark-mode .adv-item {
   margin: 0 auto;
   letter-spacing: 1px;
 }
+/* Safety control: intentionally visually distinct from destructive actions. */
+.dry-run-toggle {
+  width: 100%;
+  margin: 10px 0;
+  padding: 9px 12px;
+  border: 2px solid #7c3aed;
+  border-radius: 8px;
+  background: #f5f3ff;
+  color: #4c1d95;
+  font-weight: 700;
+}
+
+.dry-run-toggle.dry-run-active {
+  background: #4c1d95;
+  color: #fff;
+}

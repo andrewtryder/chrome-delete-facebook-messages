@@ -1,0 +1,13 @@
+{
+  "name": "chrome-delete-facebook-messages",
+  "private": true,
+  "scripts": {
+    "test": "playwright test",
+    "test:fixture": "playwright test test/fixture.spec.js",
+    "serve:fixture": "node test/serve-fixture.js",
+    "serve:testfixture": "node test/serve-fixture.js"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.56.1"
+  }
+}

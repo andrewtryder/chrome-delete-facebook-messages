@@ -27,6 +27,7 @@ app.controller("ctrl", function ($scope) {
   $scope.BuySellOpenNow = false;
   $scope.archivedOpenNow = false;
   $scope.darkMode = false;
+  $scope.dryRun = false;
   $scope.lastProgress = "";
 
   $scope.speeds = [
@@ -137,13 +138,14 @@ app.controller("ctrl", function ($scope) {
   // Theme and speed settings
   // ---------------------------------------------------------------------------
   chrome.storage.local.get(
-    ["darkMode", "speedLevel", "trialsFast", "license_key"],
+    ["darkMode", "speedLevel", "trialsFast", "license_key", "dryRun"],
     function (result) {
       safeApply(function () {
         $scope.darkMode = !!result.darkMode;
         $scope.selectedSpeed = result.speedLevel || "fast";
         $scope.trialsFast =
           typeof result.trialsFast === "number" ? result.trialsFast : 999999;
+        $scope.dryRun = !!result.dryRun;
         $scope.license = true;
         $scope.trialsLimitComplete = false;
       });
@@ -171,13 +173,28 @@ app.controller("ctrl", function ($scope) {
     toastr.success("Speed set to " + speed.name, "Updated");
   };
 
+  $scope.toggleDryRun = function () {
+    $scope.dryRun = !$scope.dryRun;
+    chrome.storage.local.set({ dryRun: $scope.dryRun });
+    toastr.info(
+      $scope.dryRun
+        ? "Dry run enabled: no destructive action will be selected."
+        : "Dry run disabled.",
+    );
+  };
+
+  function automationOptions() {
+    return { dryRun: !!$scope.dryRun };
+  }
+
   // ---------------------------------------------------------------------------
   // Page detection/navigation
   // ---------------------------------------------------------------------------
   $scope.checkUrl = function (url) {
     return (
       /facebook\.com\/(messages|latest\/inbox)/i.test(url || "") ||
-      /messenger\.com/i.test(url || "")
+      /messenger\.com/i.test(url || "") ||
+      /(?:127\.0\.0\.1|localhost):\d+\/test\/mock-messenger/i.test(url || "")
     );
   };
 
@@ -231,13 +248,13 @@ app.controller("ctrl", function ($scope) {
   $scope.archvMsgs = function () {
     resetProcessingFlags();
     $scope.archiveProcess = true;
-    sendToActiveTab("archiveMsgs");
+    sendToActiveTab("archiveMsgs", automationOptions());
   };
 
   $scope.deleteMsgs = function () {
     resetProcessingFlags();
     $scope.deleteProcess = true;
-    sendToActiveTab("deleteMsgs");
+    sendToActiveTab("deleteMsgs", automationOptions());
   };
 
   $scope.openBuySell = function () {
@@ -249,7 +266,7 @@ app.controller("ctrl", function ($scope) {
 
   $scope.deleteBuySell = function () {
     $scope.buySell = true;
-    sendToActiveTab("deleteBuySell");
+    sendToActiveTab("deleteBuySell", automationOptions());
   };
 
   $scope.openArchivedMsgs = function () {
@@ -261,7 +278,7 @@ app.controller("ctrl", function ($scope) {
 
   $scope.unarchiveAll = function () {
     $scope.unarchive = true;
-    sendToActiveTab("unarchiveAll");
+    sendToActiveTab("unarchiveAll", automationOptions());
   };
 
   $scope.stopAutomation = function () {

@@ -76,6 +76,15 @@
             only
           </div>
         </div>
+        <button
+          type="button"
+          class="dry-run-toggle"
+          ng-class="{'dry-run-active': dryRun}"
+          ng-click="toggleDryRun()"
+          aria-pressed="{{dryRun}}"
+        >
+          {{dryRun ? '🛡️ DRY RUN ACTIVE — no changes' : 'Enable dry run (no changes)'}}
+        </button>
         <div class="trial-line-wrap" ng-show="!license">
           <div class="trial-line-track">
             <div
@@ -114,53 +123,43 @@
         </div>
         <div class="action-btn-container">
           <button
-            class="archive-messages-btn"
-            ng-click="archvMsgs()"
-            ng-hide="BuySellLoadingWait || BuySellOpenNow || archivedLoadingWait || archivedOpenNow"
-            ng-class="{'disabled-button': deleteProcess}"
-          >
-            {{archiveProcess ? 'Processing...' : 'Archive All Messages'}}
-          </button>
-          <button
             class="delete-messages-btn"
             ng-click="deleteMsgs()"
-            ng-hide="BuySellLoadingWait || BuySellOpenNow ||archivedLoadingWait || archivedOpenNow"
-            ng-class="{'disabled-button': archiveProcess}"
+            ng-hide="archivedOpenNow"
+            ng-class="{'disabled-button': archiveProcess || buySell || unarchive}"
           >
-            <i class="fa fa-trash"></i> {{deleteProcess ? 'Processing...' :
-            'Delete All Messages'}}
+            <i class="fa fa-trash"></i> {{deleteProcess ? 'Processing...' : 'Delete Regular Messages'}}
           </button>
           <button
             class="buy-sale-btn"
-            ng-click="openBuySell()"
-            ng-hide="BuySellLoadingWait || BuySellOpenNow || archivedLoadingWait || archivedOpenNow"
-            ng-class="{'disabled-button': deleteProcess || archiveProcess}"
+            ng-click="deleteBuySell()"
+            ng-hide="archivedOpenNow"
+            ng-class="{'disabled-button': deleteProcess || archiveProcess || unarchive}"
           >
-            <i class="fa-solid fa-shop"></i> Click to Open Mrkt Messages
+            <i class="fa-solid fa-shop"></i> {{buySell ? 'Processing...' : 'Delete Marketplace Messages'}}
           </button>
           <button
-            class="delete-messages-btn"
-            ng-click="deleteBuySell()"
-            ng-show="BuySellOpenNow"
+            class="archive-messages-btn"
+            ng-click="archvMsgs()"
+            ng-hide="archivedOpenNow"
+            ng-class="{'disabled-button': deleteProcess || buySell || unarchive}"
           >
-            {{buySell ? 'Processing...' : 'Delete Buy/Sell Messages'}}
+            <i class="fa-solid fa-box-archive"></i> {{archiveProcess ? 'Processing...' : 'Archive All Messages'}}
           </button>
           <button
             class="openArchivedMsgs"
             ng-click="openArchivedMsgs()"
-            ng-hide="BuySellLoadingWait || BuySellOpenNow || archivedLoadingWait || archivedOpenNow"
-            ng-class="{'disabled-button': deleteProcess || archiveProcess}"
+            ng-hide="archivedOpenNow"
+            ng-class="{'disabled-button': deleteProcess || archiveProcess || buySell || unarchive}"
           >
-            <i class="fa-solid fa-box-archive"></i> Click to Open Archived
-            Messages
+            <i class="fa-solid fa-folder-open"></i> Click to Open Archived Messages
           </button>
           <button
             class="delete-messages-btn"
             ng-click="unarchiveAll()"
             ng-show="archivedOpenNow"
           >
-            {{unarchive ? 'Processing...' : 'Unarchive all Messages || Restore
-            all Messages'}}
+            <i class="fa-solid fa-unlock"></i> {{unarchive ? 'Processing...' : 'Unarchive / Restore all Messages'}}
           </button>
         </div>
       </div>
