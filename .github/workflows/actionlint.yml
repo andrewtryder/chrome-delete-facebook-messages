@@ -1,0 +1,32 @@
+name: actionlint
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+jobs:
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download actionlint
+        env:
+          ACTIONLINT_VERSION: "1.7.12"
+        run: |
+          bash <(curl -fsSL https://raw.githubusercontent.com/rhysd/actionlint/main/scripts/download-actionlint.bash) "$ACTIONLINT_VERSION"
+        shell: bash
+      - name: Run actionlint
+        run: |
+          if [ -f .github/actionlint-matcher.json ]; then
+            echo "::add-matcher::.github/actionlint-matcher.json"
+          fi
+          ./actionlint -color
+        shell: bash
