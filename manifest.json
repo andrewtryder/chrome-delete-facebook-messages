@@ -1,10 +1,10 @@
 {
   "update_url": "https://clients2.google.com/service/update2/crx",
-  "name": "Delete Facebook Messages Fast 2026",
-  "short_name": "DFMF",
+  "name": "Delete Facebook Messages",
+  "short_name": "Msg Cleaner",
   "version": "3.8.0",
   "manifest_version": 3,
-  "description": "One-click delete 🗑️, archive 📂, or unarchive 🔓 all types of messages for a clutter-free conversation list. 🧹",
+  "description": "Open-source browser extension to preview, delete, archive, and restore Messenger conversations.",
   "author": "andrewtryder",
   "icons": {
     "128": "icons/128.png",
@@ -12,7 +12,7 @@
   },
   "action": {
     "default_icon": "icons/128.png",
-    "default_title": "DFMF",
+    "default_title": "Delete Facebook Messages",
     "default_popup": "src/browser_action/browser_action.html"
   },
   "content_scripts": [
@@ -20,9 +20,6 @@
       "matches": [
         "https://*.facebook.com/*",
         "https://*.messenger.com/*"
-      ],
-      "css": [
-        "css/style.css"
       ],
       "js": [
         "js/script.js"
