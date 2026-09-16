@@ -19,6 +19,8 @@ if (typeof document !== "undefined" && document.documentElement) {
   let actionDelaySeconds = 5;
   let dryRunActive = false;
   let maxActions = Infinity;
+  let activeSkippedCount = 0;
+  let activeErrorCount = 0;
 
   const SPEED_SECONDS = {
     slow: 18.0,
@@ -422,7 +424,7 @@ if (typeof document !== "undefined" && document.documentElement) {
       ].join("; ");
 
       const title = document.createElement("div");
-      title.textContent = "🗑️ Delete Facebook Messages Fast 2026";
+      title.textContent = "Delete Facebook Messages";
       title.style.cssText =
         "display:flex;align-items:center;font-size:16px;font-weight:normal;gap:8px;white-space:nowrap";
 
@@ -433,7 +435,7 @@ if (typeof document !== "undefined" && document.documentElement) {
 
       const stop = document.createElement("button");
       stop.id = "stopDeletionButton";
-      stop.textContent = "✋ Stop";
+      stop.textContent = "Stop";
       stop.style.cssText = [
         "background:#ff4757",
         "border:none",
@@ -460,9 +462,27 @@ if (typeof document !== "undefined" && document.documentElement) {
     if (popup) popup.remove();
   }
 
+  function persistAggregateRun(resultLabel) {
+    if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) return;
+    const modeName = activeMode && ACTIONS[activeMode] ? ACTIONS[activeMode].popupLabel : (activeMode || "Action");
+    const activity = {
+      action: modeName,
+      result: resultLabel || "Completed",
+      processed: processedCount,
+      inspected: dryRunInspectedCount,
+      skipped: activeSkippedCount,
+      errors: activeErrorCount,
+      timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
+    };
+    chrome.storage.local.set({ recentActivity: activity }, () => {
+      void chrome.runtime.lastError;
+    });
+  }
+
   function stopAutomation() {
     shouldRun = false;
     showStatus("Process stopping after current action...");
+    persistAggregateRun("Stopped by user");
     send("automationStopped", { mode: activeMode, count: processedCount });
   }
 
@@ -509,11 +529,11 @@ if (typeof document !== "undefined" && document.documentElement) {
     }
     const dataId = row.getAttribute("data-thread-id") || row.id;
     if (dataId) return `id:${dataId}`;
-    if (!row.__dfmf_thread_id) {
+    if (!row.__thread_id) {
       threadIdentitySequence++;
-      row.__dfmf_thread_id = `dfmf-thread-${threadIdentitySequence}`;
+      row.__thread_id = `thread-${threadIdentitySequence}`;
     }
-    return row.__dfmf_thread_id;
+    return row.__thread_id;
   }
 
   // ---------------------------------------------------------------------------
@@ -1065,14 +1085,6 @@ if (typeof document !== "undefined" && document.documentElement) {
       threadLabel: title,
     });
 
-    try {
-      const stored = await chrome.storage.local.get(["trialsFast"]);
-      await chrome.storage.local.set({
-        trialsFast: (stored.trialsFast || 0) + 1,
-      });
-    } catch (err) {
-      console.debug("Could not update trialsFast:", err);
-    }
 
     await actionDelay();
 
@@ -1230,14 +1242,6 @@ if (typeof document !== "undefined" && document.documentElement) {
       threadLabel,
     });
 
-    try {
-      const stored = await chrome.storage.local.get(["trialsFast"]);
-      await chrome.storage.local.set({
-        trialsFast: (stored.trialsFast || 0) + 1,
-      });
-    } catch (err) {
-      console.debug("Could not update trialsFast:", err);
-    }
 
     await actionDelay();
     return { status: "done", threadLabel };
@@ -1281,6 +1285,8 @@ if (typeof document !== "undefined" && document.documentElement) {
     }
     processedCount = 0;
     dryRunInspectedCount = 0;
+    activeSkippedCount = 0;
+    activeErrorCount = 0;
     const skippedIdentities = new Set();
     const inspectedIdentities = new Set();
 
@@ -1327,6 +1333,12 @@ if (typeof document !== "undefined" && document.documentElement) {
           });
           return;
         }
+      } else if (mode === "unarchive") {
+        if (!isArchivedFolder()) {
+          showStatus("Opening Archived chats...");
+          await openArchivedMessages();
+          await sleep(500);
+        }
       }
 
       while (shouldRun) {
@@ -1340,6 +1352,7 @@ if (typeof document !== "undefined" && document.documentElement) {
             ? `Dry run finished. Inspected ${dryRunInspectedCount} conversation(s). No actions were executed.`
             : actionConfig.emptyMessage;
           console.log(completionMessage);
+          persistAggregateRun(dryRunActive ? "Dry run complete" : "Completed");
           send(actionConfig.completeAction, {
             mode,
             count: processedCount,
@@ -1360,6 +1373,7 @@ if (typeof document !== "undefined" && document.documentElement) {
           if (dryRunInspectedCount >= maxActions) {
             console.log(`[DRY RUN] Reached inspection limit of ${maxActions} thread(s).`);
             shouldRun = false;
+            persistAggregateRun("Dry run complete");
             send(actionConfig.completeAction, {
               mode,
               count: 0,
@@ -1376,6 +1390,7 @@ if (typeof document !== "undefined" && document.documentElement) {
         }
 
         if (result.status === "skipped") {
+          activeSkippedCount++;
           send("automationWarning", {
             mode,
             count: processedCount,
@@ -1387,6 +1402,7 @@ if (typeof document !== "undefined" && document.documentElement) {
             skippedIdentities.size >= Math.max(1, getThreadMenuButtons().length)
           ) {
             console.warn("All visible thread menus were skipped; stopping.");
+            persistAggregateRun("All items skipped");
             send(actionConfig.completeAction, {
               mode,
               count: processedCount,
@@ -1403,6 +1419,7 @@ if (typeof document !== "undefined" && document.documentElement) {
         if (processedCount >= maxActions) {
           console.warn(`[SAFETY LIMIT] Reached ${maxActions} completed action(s).`);
           shouldRun = false;
+          persistAggregateRun("Safety limit reached");
           send(actionConfig.completeAction, {
             mode,
             count: processedCount,
@@ -1412,6 +1429,8 @@ if (typeof document !== "undefined" && document.documentElement) {
       }
     } catch (err) {
       console.error(`${actionConfig.label} loop failed:`, err);
+      activeErrorCount++;
+      persistAggregateRun("Error");
       send(actionConfig.errorAction, {
         mode,
         count: processedCount,
@@ -1695,6 +1714,21 @@ if (typeof document !== "undefined" && document.documentElement) {
         stopAutomation();
         sendResponse && sendResponse({ ok: true });
         return true;
+
+      case "getAutomationState":
+        sendResponse &&
+          sendResponse({
+            ok: true,
+            running: busy,
+            stopping: busy && !shouldRun,
+            mode: activeMode,
+            dryRun: dryRunActive,
+            processed: processedCount,
+            inspected: dryRunInspectedCount,
+            skipped: activeSkippedCount,
+            errors: activeErrorCount,
+          });
+        return false;
 
       case "debugSelectors": {
         const payload = getDebugSnapshot();

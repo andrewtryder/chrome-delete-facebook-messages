@@ -1,260 +1,409 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
   <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width,initial-scale=1" />
-    <title>DATM</title>
-    <link rel="stylesheet" href="css/bootstrap.min.css" />
-    <link rel="stylesheet" href="css/custom-toast.css" />
-    <link
-      rel="stylesheet"
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css"
-    />
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Delete Facebook Messages</title>
     <link rel="stylesheet" href="css/style.css" />
   </head>
-  <body ng-app="myapp" ng-controller="ctrl" ng-class="{'dark-mode': darkMode}">
-    <button
-      class="theme-toggle-btn"
-      ng-click="toggleTheme()"
-      title="Toggle Dark/Light Mode"
-    >
-      <i class="fas" ng-class="darkMode ? 'fa-sun' : 'fa-moon'"></i>
-    </button>
-    <div class="container d-flex flex-column mb-3">
-      <div class="notOnFB mt-2" ng-show="notOnFB">
-        <div class="custom-alert">
-          <h2>🚫 Oops! Wrong Page 😮</h2>
-          <p>
-            It seems you've landed on the wrong page. Click the below to button
-            return to your Messages.🔙
-          </p>
+  <body>
+    <!-- Notification Banner -->
+    <div id="notification-banner" class="notification-banner hidden" role="status" aria-live="polite" data-testid="notification">
+      <span class="notification-icon" id="notification-icon">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+          <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/>
+        </svg>
+      </span>
+      <span class="notification-text" id="notification-text"></span>
+      <button type="button" class="notification-dismiss" id="notification-dismiss" aria-label="Dismiss notification">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+          <path d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- MAIN VIEW -->
+    <main id="view-main" class="app-container">
+      <!-- Header -->
+      <header class="app-header">
+        <div class="header-logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H5.17L4 17.17V4h16v12z"/>
+          </svg>
         </div>
-        <button class="goto-messages-btn" ng-click="goToFBP()">
-          Go to Facebook Messages Page
+        <div class="header-titles">
+          <h1 class="app-title">Delete Facebook Messages</h1>
+          <p class="app-subtitle">Clean up your Messenger conversations</p>
+        </div>
+        <button type="button" class="icon-btn" id="btn-settings" aria-label="Open settings" data-testid="settings-btn">
+          <svg viewBox="0 0 24 24">
+            <path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/>
+          </svg>
         </button>
-      </div>
-      <div class="loadingMPage text-center py-4" ng-show="loadingMPage">
-        <div
-          class="spinner-border text-secondary"
-          style="width: 3rem; height: 3rem"
-          role="status"
-        ></div>
-        <div class="text-dark">Loading page......</div>
-      </div>
-      <div class="onFB" ng-show="onFB && (!trialsLimitComplete || license)">
-        <div class="status-strip-premium" ng-show="license">
-          <i class="fas fa-crown"></i> Premium
-        </div>
-        <div class="speed-section">
-          <div class="speed-section-title">
-            <i class="fas fa-bolt"></i> Processing Speed
-            <span class="current-speed-pill"
-              >{{getSpeedLabel(selectedSpeed)}}</span
-            >
+      </header>
+
+      <!-- Status Card -->
+      <section class="card status-card" data-testid="status-card" role="status" aria-live="polite">
+        <div class="status-row">
+          <div class="status-badge-wrap">
+            <span class="status-dot checking" id="status-dot" aria-hidden="true"></span>
+            <span class="status-heading" id="status-heading">Checking current tab…</span>
           </div>
-          <div class="speed-grid">
-            <div
-              class="speed-btn"
-              ng-repeat="speed in speeds"
-              ng-class="{'active': selectedSpeed === speed.id, 'locked': speed.locked && !license}"
-              ng-click="setSpeed(speed)"
-            >
-              <span class="speed-icon">{{speed.icon}}</span>
-              <span>{{speed.name}}</span>
-              <span class="lock-badge" ng-show="speed.locked && !license"
-                ><i class="fas fa-lock"></i
-              ></span>
+          <button type="button" class="btn-secondary" id="btn-refresh" data-testid="refresh-btn" aria-label="Refresh status">
+            <svg viewBox="0 0 24 24">
+              <path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/>
+            </svg>
+            Refresh
+          </button>
+        </div>
+        <p class="status-desc" id="status-desc">Examining the active browser tab for Messenger.</p>
+        <button type="button" class="btn-open-messenger hidden" id="btn-open-messenger" data-testid="open-messenger-btn">
+          Open Messenger
+        </button>
+      </section>
+
+      <!-- Safety Notice Card -->
+      <section class="notice-card" id="safety-notice-card" data-testid="safety-notice-card">
+        <span class="notice-title" id="safety-notice-title">Deletion is permanent</span>
+        <span class="notice-body" id="safety-notice-body">
+          Deleted conversations cannot be restored by this extension. Use Dry run to preview what would be selected before making changes.
+        </span>
+      </section>
+
+      <!-- Operation Selection Card -->
+      <section class="card" data-testid="action-card">
+        <span class="card-title">Action</span>
+        <div class="radio-group" role="radiogroup" aria-label="Select operation">
+          <label class="radio-card active" data-testid="op-delete">
+            <input type="radio" name="operation" value="delete" checked />
+            <div class="radio-content">
+              <span class="radio-label">Delete regular conversations</span>
+              <span class="radio-desc">Delete conversations from your main Messenger inbox.</span>
+            </div>
+          </label>
+
+          <label class="radio-card" data-testid="op-delete-marketplace">
+            <input type="radio" name="operation" value="deleteBuySell" />
+            <div class="radio-content">
+              <span class="radio-label">Delete Marketplace conversations</span>
+              <span class="radio-desc">Delete conversations associated with Marketplace.</span>
+            </div>
+          </label>
+
+          <label class="radio-card" data-testid="op-archive">
+            <input type="radio" name="operation" value="archive" />
+            <div class="radio-content">
+              <span class="radio-label">Archive regular conversations</span>
+              <span class="radio-desc">Move regular conversations into Archived chats.</span>
+            </div>
+          </label>
+
+          <label class="radio-card" data-testid="op-restore">
+            <input type="radio" name="operation" value="unarchive" />
+            <div class="radio-content">
+              <span class="radio-label">Restore archived conversations</span>
+              <span class="radio-desc">Move archived conversations back to your inbox.</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Safety Options Card -->
+      <section class="card" data-testid="safety-card">
+        <span class="card-title">Safety</span>
+
+        <div class="switch-row">
+          <label class="switch-label-wrap" for="dry-run-toggle">
+            <span class="switch-title">Dry run — preview only</span>
+            <span class="switch-desc">Inspect matching conversations without selecting the action.</span>
+          </label>
+          <input type="checkbox" id="dry-run-toggle" class="switch-input" data-testid="dry-run-toggle" />
+        </div>
+
+        <div class="switch-row">
+          <label class="switch-label-wrap" for="limit-toggle">
+            <span class="switch-title">Limit conversations</span>
+            <span class="switch-desc">Stop after processing a specific number of conversations.</span>
+          </label>
+          <input type="checkbox" id="limit-toggle" class="switch-input" data-testid="limit-toggle" />
+        </div>
+
+        <div class="limit-input-wrap hidden" id="limit-input-wrap">
+          <input type="number" id="max-actions-input" class="number-input" data-testid="max-actions-input" min="1" max="10000" value="10" />
+          <span class="input-caption">conversations max</span>
+        </div>
+      </section>
+
+      <!-- Advanced Options -->
+      <details class="advanced-details" id="advanced-details" data-testid="advanced-options">
+        <summary class="advanced-summary" data-testid="advanced-toggle">
+          <span>Advanced options</span>
+          <svg viewBox="0 0 24 24">
+            <path d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6 1.41-1.41z"/>
+          </svg>
+        </summary>
+        <div class="advanced-body">
+          <div class="select-group">
+            <label class="select-label" for="speed-select">Delay between actions</label>
+            <select id="speed-select" class="select-control" data-testid="speed-select">
+              <option value="slow">Very careful — ~18 sec</option>
+              <option value="normal">Careful — ~10 sec</option>
+              <option value="fast" selected>Recommended — ~5 sec</option>
+              <option value="veryfast">Fast — ~2.5 sec</option>
+              <option value="ultra">Fastest — ~1.2 sec</option>
+            </select>
+          </div>
+        </div>
+      </details>
+
+      <!-- CTA & Running State -->
+      <div class="cta-container">
+        <button type="button" class="btn-primary-cta" id="btn-main-cta" data-testid="main-cta-btn">
+          Start deleting
+        </button>
+
+        <div class="running-card hidden" id="running-card" data-testid="running-container">
+          <div class="running-info">
+            <span class="spinner" aria-hidden="true"></span>
+            <span id="running-text">Deleting conversations…</span>
+          </div>
+          <button type="button" class="btn-stop" id="btn-stop" data-testid="stop-btn">
+            Stop
+          </button>
+        </div>
+      </div>
+
+      <!-- Metrics Card -->
+      <section class="card" data-testid="metrics-card">
+        <div class="metrics-grid">
+          <div class="metric-box" data-testid="metric-processed">
+            <span class="metric-val" id="metric-processed-val">0</span>
+            <span class="metric-label" id="metric-processed-label">Deleted</span>
+          </div>
+          <div class="metric-box" data-testid="metric-inspected">
+            <span class="metric-val" id="metric-inspected-val">0</span>
+            <span class="metric-label">Inspected</span>
+          </div>
+          <div class="metric-box" data-testid="metric-skipped">
+            <span class="metric-val" id="metric-skipped-val">0</span>
+            <span class="metric-label">Skipped</span>
+          </div>
+          <div class="metric-box" data-testid="metric-errors">
+            <span class="metric-val" id="metric-errors-val">0</span>
+            <span class="metric-label">Errors</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Footer -->
+      <footer class="app-footer" data-testid="footer">
+        <span>Open source</span>
+        <span>•</span>
+        <span id="footer-version">v3.8.0</span>
+        <span>•</span>
+        <a href="https://github.com/andrewtryder/chrome-delete-facebook-messages" target="_blank" rel="noopener noreferrer" class="footer-link">
+          View on GitHub
+        </a>
+      </footer>
+    </main>
+
+    <!-- SETTINGS VIEW -->
+    <section id="view-settings" class="app-container hidden">
+      <header class="settings-header">
+        <button type="button" class="icon-btn" id="btn-back" aria-label="Back to main view" data-testid="settings-back-btn">
+          <svg viewBox="0 0 24 24">
+            <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z"/>
+          </svg>
+        </button>
+        <div class="header-titles">
+          <h1 class="app-title">Delete Facebook Messages</h1>
+          <p class="app-subtitle">Settings & Information</p>
+        </div>
+      </header>
+
+      <!-- Tab Navigation -->
+      <nav class="tab-nav" role="tablist" aria-label="Settings tabs">
+        <button type="button" class="tab-btn active" id="tab-settings" role="tab" aria-selected="true" data-testid="tab-settings">
+          Settings
+        </button>
+        <button type="button" class="tab-btn" id="tab-activity" role="tab" aria-selected="false" data-testid="tab-activity">
+          Activity
+        </button>
+        <button type="button" class="tab-btn" id="tab-about" role="tab" aria-selected="false" data-testid="tab-about">
+          About
+        </button>
+      </nav>
+
+      <!-- Settings Tab Panel -->
+      <div id="panel-settings" class="tab-panel" role="tabpanel" data-testid="panel-settings">
+        <div class="card">
+          <span class="card-title">Defaults</span>
+          <div class="switch-row">
+            <label class="switch-label-wrap" for="setting-default-dry-run">
+              <span class="switch-title">Dry run by default</span>
+              <span class="switch-desc">Always start in preview mode.</span>
+            </label>
+            <input type="checkbox" id="setting-default-dry-run" class="switch-input" data-testid="setting-default-dry-run" />
+          </div>
+
+          <div class="switch-row">
+            <label class="switch-label-wrap" for="setting-default-limit">
+              <span class="switch-title">Default conversation limit</span>
+              <span class="switch-desc">Cap each operation by default.</span>
+            </label>
+            <input type="checkbox" id="setting-default-limit" class="switch-input" data-testid="setting-default-limit" />
+          </div>
+
+          <div class="limit-input-wrap hidden" id="setting-default-limit-wrap">
+            <input type="number" id="setting-default-limit-val" class="number-input" data-testid="setting-default-limit-val" min="1" max="10000" value="10" />
+            <span class="input-caption">conversations</span>
+          </div>
+
+          <div class="select-group" style="padding-top: 6px;">
+            <label class="select-label" for="setting-default-speed">Default delay between actions</label>
+            <select id="setting-default-speed" class="select-control" data-testid="setting-default-speed">
+              <option value="slow">Very careful — ~18 sec</option>
+              <option value="normal">Careful — ~10 sec</option>
+              <option value="fast">Recommended — ~5 sec</option>
+              <option value="veryfast">Fast — ~2.5 sec</option>
+              <option value="ultra">Fastest — ~1.2 sec</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <span class="card-title">Appearance</span>
+          <div class="select-group">
+            <label class="select-label" for="theme-select">Theme</label>
+            <select id="theme-select" class="select-control" data-testid="theme-select">
+              <option value="system">System</option>
+              <option value="light">Light</option>
+              <option value="dark">Dark</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="card">
+          <span class="card-title">Data</span>
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <button type="button" class="btn-secondary" id="btn-reset-activity" data-testid="reset-activity-btn" style="justify-content: center;">
+              Reset local activity
+            </button>
+            <span class="switch-desc" style="text-align: center;">
+              Clears locally stored aggregate run statistics and UI preferences that are safe to reset.
+            </span>
+            <button type="button" class="btn-secondary" id="btn-reset-settings" data-testid="reset-settings-btn" style="justify-content: center; margin-top: 4px;">
+              Reset settings to default
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Activity Tab Panel -->
+      <div id="panel-activity" class="tab-panel hidden" role="tabpanel" data-testid="panel-activity">
+        <div class="card activity-card" id="activity-card">
+          <span class="card-title">Recent Run Summary</span>
+          <div id="activity-content">
+            <p class="empty-activity" id="empty-activity" data-testid="empty-activity">No activity recorded yet.</p>
+            <div id="activity-details" class="hidden">
+              <div class="activity-row">
+                <span class="activity-label">Last action:</span>
+                <span class="activity-val" id="act-action">—</span>
+              </div>
+              <div class="activity-row">
+                <span class="activity-label">Result:</span>
+                <span class="activity-val" id="act-result">—</span>
+              </div>
+              <div class="activity-row">
+                <span class="activity-label">Processed:</span>
+                <span class="activity-val" id="act-processed">0</span>
+              </div>
+              <div class="activity-row">
+                <span class="activity-label">Inspected:</span>
+                <span class="activity-val" id="act-inspected">0</span>
+              </div>
+              <div class="activity-row">
+                <span class="activity-label">Skipped:</span>
+                <span class="activity-val" id="act-skipped">0</span>
+              </div>
+              <div class="activity-row">
+                <span class="activity-label">Errors:</span>
+                <span class="activity-val" id="act-errors">0</span>
+              </div>
+              <div class="activity-row">
+                <span class="activity-label">Timestamp:</span>
+                <span class="activity-val" id="act-time">—</span>
+              </div>
             </div>
           </div>
-          <div class="speed-hint" ng-show="!license">
-            🔒 Very Fast &amp; Ultra speeds are
-            <a
-              href="https://github.com/andrewtryder/chrome-delete-facebook-messages"
-              target="_blank"
-              >Premium</a
-            >
-            only
-          </div>
-        </div>
-        <button
-          type="button"
-          class="dry-run-toggle"
-          ng-class="{'dry-run-active': dryRun}"
-          ng-click="toggleDryRun()"
-          aria-pressed="{{dryRun}}"
-        >
-          {{dryRun ? '🛡️ DRY RUN ACTIVE — no changes' : 'Enable dry run (no changes)'}}
-        </button>
-        <div class="trial-line-wrap" ng-show="!license">
-          <div class="trial-line-track">
-            <div
-              class="trial-line-fill"
-              ng-style="{'width': ((5 - (trialsFast || 0) > 0 ? (5 - (trialsFast || 0)) : 0) / 5 * 100) + '%'}"
-              ng-class="{'tl-ok': (5-(trialsFast||0))>2, 'tl-low': (5-(trialsFast||0))<=2&&(5-(trialsFast||0))>0, 'tl-empty': (5-(trialsFast||0))<=0}"
-            ></div>
-          </div>
-          <span
-            class="trial-line-label"
-            ng-class="{'tl-ok': (5-(trialsFast||0))>2, 'tl-low': (5-(trialsFast||0))<=2&&(5-(trialsFast||0))>0, 'tl-empty': (5-(trialsFast||0))<=0}"
-            >{{5-(trialsFast||0)>0?(5-(trialsFast||0)):0}}/5 trials left</span
-          >
-        </div>
-        <div
-          class="d-flex flex-column justify-content-center align-items-center py-4"
-          ng-show="BuySellLoadingWait"
-        >
-          <div
-            class="spinner-border"
-            style="width: 3rem; height: 3rem"
-            role="status"
-          ></div>
-          <div class="text-dark mt-3">Processing Buy/Sell Messages...</div>
-        </div>
-        <div
-          class="d-flex flex-column justify-content-center align-items-center py-4"
-          ng-show="archivedLoadingWait"
-        >
-          <div
-            class="spinner-border"
-            style="width: 3rem; height: 3rem"
-            role="status"
-          ></div>
-          <div class="text-dark mt-3">Processing Archived Messages...</div>
-        </div>
-        <div class="action-btn-container">
-          <button
-            class="delete-messages-btn"
-            ng-click="deleteMsgs()"
-            ng-hide="archivedOpenNow"
-            ng-class="{'disabled-button': archiveProcess || buySell || unarchive}"
-          >
-            <i class="fa fa-trash"></i> {{deleteProcess ? 'Processing...' : 'Delete Regular Messages'}}
-          </button>
-          <button
-            class="buy-sale-btn"
-            ng-click="deleteBuySell()"
-            ng-hide="archivedOpenNow"
-            ng-class="{'disabled-button': deleteProcess || archiveProcess || unarchive}"
-          >
-            <i class="fa-solid fa-shop"></i> {{buySell ? 'Processing...' : 'Delete Marketplace Messages'}}
-          </button>
-          <button
-            class="archive-messages-btn"
-            ng-click="archvMsgs()"
-            ng-hide="archivedOpenNow"
-            ng-class="{'disabled-button': deleteProcess || buySell || unarchive}"
-          >
-            <i class="fa-solid fa-box-archive"></i> {{archiveProcess ? 'Processing...' : 'Archive All Messages'}}
-          </button>
-          <button
-            class="openArchivedMsgs"
-            ng-click="openArchivedMsgs()"
-            ng-hide="archivedOpenNow"
-            ng-class="{'disabled-button': deleteProcess || archiveProcess || buySell || unarchive}"
-          >
-            <i class="fa-solid fa-folder-open"></i> Click to Open Archived Messages
-          </button>
-          <button
-            class="delete-messages-btn"
-            ng-click="unarchiveAll()"
-            ng-show="archivedOpenNow"
-          >
-            <i class="fa-solid fa-unlock"></i> {{unarchive ? 'Processing...' : 'Unarchive / Restore all Messages'}}
+          <button type="button" class="btn-secondary" id="btn-clear-activity" data-testid="clear-activity-btn" style="justify-content: center; margin-top: 6px;">
+            Clear activity
           </button>
         </div>
       </div>
-    </div>
-    <div
-      class="license-wrapper"
-      ng-show="onFB && trialsLimitComplete && !license"
-    >
-      <div class="license-card">
-        <div class="license-badge"><i class="fas fa-crown"></i></div>
-        <div class="license-header">
-          <h3 class="license-title">Unlock Premium</h3>
-          <p class="license-subtitle">
-            Your free trials have ended. Upgrade for unlimited access.
+
+      <!-- About Tab Panel -->
+      <div id="panel-about" class="tab-panel hidden" role="tabpanel" data-testid="panel-about">
+        <div class="card about-card">
+          <h2 class="app-title">Delete Facebook Messages</h2>
+          <span class="activity-label" id="about-version" data-testid="about-version">Version 3.8.0</span>
+          <p class="about-desc">
+            An open-source browser extension for managing Messenger conversations directly in your browser.
           </p>
         </div>
-        <div class="license-advantages">
-          <div class="adv-item">
-            <span class="adv-icon"><i class="fas fa-infinity"></i></span>
-            <span class="adv-text">Unlimited Deletes</span>
-          </div>
-          <div class="adv-item">
-            <span class="adv-icon"><i class="fas fa-rocket"></i></span>
-            <span class="adv-text">Ultra Speed</span>
-          </div>
-          <div class="adv-item">
-            <span class="adv-icon"><i class="fas fa-shield-halved"></i></span>
-            <span class="adv-text">Priority Support</span>
-          </div>
-          <div class="adv-item">
-            <span class="adv-icon"><i class="fas fa-box-archive"></i></span>
-            <span class="adv-text">Archive & Restore</span>
-          </div>
-          <div class="adv-item">
-            <span class="adv-icon"><i class="fas fa-shop"></i></span>
-            <span class="adv-text">Marketplace Clean</span>
-          </div>
-          <div class="adv-item">
-            <span class="adv-icon"><i class="fas fa-lock-open"></i></span>
-            <span class="adv-text">All Features</span>
+
+        <div class="card">
+          <span class="card-title">Privacy & Safety</span>
+          <p class="about-desc">
+            Conversation actions run locally in your browser. The extension does not send message content to an external server.
+          </p>
+        </div>
+
+        <div class="card">
+          <span class="card-title">License</span>
+          <p class="about-desc">
+            Released under the <a href="https://github.com/andrewtryder/chrome-delete-facebook-messages/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="footer-link">MIT License</a>.
+          </p>
+        </div>
+
+        <div class="card">
+          <span class="card-title">Open Source</span>
+          <div class="about-buttons">
+            <a href="https://github.com/andrewtryder/chrome-delete-facebook-messages" target="_blank" rel="noopener noreferrer" class="btn-external-link" data-testid="github-link">
+              <span>View on GitHub</span>
+              <svg viewBox="0 0 24 24">
+                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+              </svg>
+            </a>
+            <a href="https://github.com/andrewtryder/chrome-delete-facebook-messages/issues/new" target="_blank" rel="noopener noreferrer" class="btn-external-link" data-testid="issue-link">
+              <span>Report an Issue</span>
+              <svg viewBox="0 0 24 24">
+                <path d="M19 19H5V5h7V3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2v-7h-2v7zM14 3v2h3.59l-9.83 9.83 1.41 1.41L19 6.41V10h2V3h-7z"/>
+              </svg>
+            </a>
           </div>
         </div>
-        <div class="license-input-wrap">
-          <input
-            type="text"
-            class="license-input"
-            placeholder="K9LMN23X-VGH8J4P6-C3YK7ZTW-FQRT9P2A"
-            ng-model="license_key"
-          />
-          <button
-            class="submitLicenseKey"
-            ng-click="verify_license(license_key)"
-          >
-            <i class="fas fa-key"></i> {{licensebb ? 'Verifying...' : 'Activate
-            License'}}
+      </div>
+    </section>
+
+    <!-- Confirmation Modal Sheet -->
+    <div id="confirm-modal" class="modal-overlay hidden" data-testid="confirm-modal">
+      <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="modal-title" aria-describedby="modal-body">
+        <h2 class="modal-title" id="modal-title">Delete conversations?</h2>
+        <p class="modal-body" id="modal-body">
+          This action permanently deletes the matching conversations from your account.
+        </p>
+        <div class="modal-actions">
+          <button type="button" class="btn-modal-cancel" id="btn-modal-cancel" data-testid="modal-cancel-btn">
+            Cancel
+          </button>
+          <button type="button" class="btn-modal-confirm" id="btn-modal-confirm" data-testid="modal-confirm-btn">
+            Delete conversations
           </button>
         </div>
-        <div class="license-divider"><span>or</span></div>
-        <a
-          href="https://github.com/andrewtryder/chrome-delete-facebook-messages"
-          target="_blank"
-          class="buySubs"
-          ><i class="fa fa-shopping-cart"></i> Buy Subscription Now</a
-        >
       </div>
     </div>
-    <footer class="footer" ng-show="!(onFB && trialsLimitComplete && !license)">
-      <div class="footer-content">
-        <div class="footer-left">
-          <span class="footer-brand-icon"
-            ><i class="fas fa-shield-halved"></i
-          ></span>
-          <span class="footer-copy">&copy; 2026 andrewtryder</span>
-        </div>
-        <div class="footer-links">
-          <a
-            href="mailto:andrewtryder@gmail.com?subject=Bug Report"
-            class="footer-link"
-            title="Report a Bug"
-            ><i class="fas fa-bug"></i> </a
-          ><a
-            href="https://github.com/andrewtryder/chrome-delete-facebook-messages"
-            target="_blank"
-            class="footer-link footer-link-premium"
-            title="Get Premium"
-            ><i class="fas fa-crown"></i
-          ></a>
-        </div>
-      </div>
-    </footer>
-    <script src="../../js/jquery.min.js"></script>
-    <script src="js/angular.min.js"></script>
-    <script src="js/papaparse.min.js"></script>
-    <script src="js/custom-toast.js"></script>
-    <script src="js/bootstrap.min.js"></script>
+
     <script src="js/browser_action.js"></script>
   </body>
 </html>
