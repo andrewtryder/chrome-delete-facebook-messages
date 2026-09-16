@@ -1,6 +1,10 @@
 console.log("🚀 FBChats Cleaner - script.js injected successfully");
 console.log("Current URL:", window.location.href);
 
+if (typeof document !== "undefined" && document.documentElement) {
+  document.documentElement.setAttribute("data-fb-cleaner-injected", "true");
+}
+
 (() => {
   "use strict";
 
@@ -8,10 +12,15 @@ console.log("Current URL:", window.location.href);
   // Runtime state
   // ---------------------------------------------------------------------------
   let processedCount = 0;
+  let dryRunInspectedCount = 0;
   let shouldRun = false;
   let busy = false;
   let activeMode = null;
   let actionDelaySeconds = 5;
+  let dryRunActive = false;
+  let maxActions = Infinity;
+  let activeSkippedCount = 0;
+  let activeErrorCount = 0;
 
   const SPEED_SECONDS = {
     slow: 18.0,
@@ -161,6 +170,12 @@ console.log("Current URL:", window.location.href);
   }
 
   async function actionDelay() {
+    // The fixture is an explicitly marked local test target; no real-site
+    // timing assumptions are needed there.
+    if (isFixturePage()) {
+      await sleep(20);
+      return;
+    }
     const baseMs = Math.max(250, actionDelaySeconds * 1000);
     const jitterMs = Math.floor(350 + Math.random() * 900);
     const totalMs = baseMs + jitterMs;
@@ -302,7 +317,7 @@ console.log("Current URL:", window.location.href);
     );
   }
 
-  function realClick(rawEl) {
+  function activate(rawEl) {
     const el = closestClickable(rawEl);
     if (!el) return false;
 
@@ -324,53 +339,17 @@ console.log("Current URL:", window.location.href);
       } catch (__) {}
     }
 
-    const rect = el.getBoundingClientRect();
-    const x = rect.left + rect.width / 2;
-    const y = rect.top + rect.height / 2;
-
-    const events = [
-      "pointerover",
-      "pointerenter",
-      "pointermove",
-      "mouseover",
-      "mouseenter",
-      "mousemove",
-      "pointerdown",
-      "mousedown",
-      "pointerup",
-      "mouseup",
-      "click",
-    ];
-
-    for (const type of events) {
-      const EventCtor =
-        type.startsWith("pointer") && typeof PointerEvent === "function"
-          ? PointerEvent
-          : MouseEvent;
-
-      el.dispatchEvent(
-        new EventCtor(type, {
-          bubbles: true,
-          cancelable: true,
-          composed: true,
-          view: window,
-          clientX: x,
-          clientY: y,
-          pointerId: 1,
-          pointerType: "mouse",
-          isPrimary: true,
-          button: 0,
-          buttons: type.endsWith("down") ? 1 : 0,
-        }),
-      );
-    }
-
+    // Direct click is the safest single-action invocation for React & native DOM
+    // without semantic double-action risks from synthesized pointerup sequences.
     if (typeof el.click === "function") {
       el.click();
+      return true;
     }
 
-    return true;
+    return false;
   }
+
+  const realClick = activate;
 
   function pressEnterOn(rawEl) {
     const el = closestClickable(rawEl);
@@ -445,7 +424,7 @@ console.log("Current URL:", window.location.href);
       ].join("; ");
 
       const title = document.createElement("div");
-      title.textContent = "🗑️ Delete Facebook Messages Fast 2026";
+      title.textContent = "Delete Facebook Messages";
       title.style.cssText =
         "display:flex;align-items:center;font-size:16px;font-weight:normal;gap:8px;white-space:nowrap";
 
@@ -456,7 +435,7 @@ console.log("Current URL:", window.location.href);
 
       const stop = document.createElement("button");
       stop.id = "stopDeletionButton";
-      stop.textContent = "✋ Stop";
+      stop.textContent = "Stop";
       stop.style.cssText = [
         "background:#ff4757",
         "border:none",
@@ -483,37 +462,102 @@ console.log("Current URL:", window.location.href);
     if (popup) popup.remove();
   }
 
+  function persistAggregateRun(resultLabel) {
+    if (typeof chrome === "undefined" || !chrome.storage || !chrome.storage.local) return;
+    const modeName = activeMode && ACTIONS[activeMode] ? ACTIONS[activeMode].popupLabel : (activeMode || "Action");
+    const activity = {
+      action: modeName,
+      result: resultLabel || "Completed",
+      processed: processedCount,
+      inspected: dryRunInspectedCount,
+      skipped: activeSkippedCount,
+      errors: activeErrorCount,
+      timestamp: new Date().toISOString().replace("T", " ").substring(0, 19),
+    };
+    chrome.storage.local.set({ recentActivity: activity }, () => {
+      void chrome.runtime.lastError;
+    });
+  }
+
   function stopAutomation() {
     shouldRun = false;
     showStatus("Process stopping after current action...");
+    persistAggregateRun("Stopped by user");
     send("automationStopped", { mode: activeMode, count: processedCount });
   }
 
   function isMessengerPage() {
     return (
+      document.documentElement.dataset.fbCleanerFixture === "true" ||
       /(^|\.)facebook\.com\/messages/i.test(
         location.hostname + location.pathname,
       ) || /(^|\.)messenger\.com$/i.test(location.hostname)
     );
   }
 
+  function isFixturePage() {
+    return document.documentElement.dataset.fbCleanerFixture === "true";
+  }
+
+  function announceDryRun(message) {
+    console.warn(`[DRY RUN] ${message}`);
+    showStatus(`DRY RUN — ${message}`);
+  }
+
+  function dryRunResult(threadLabel, reason, actionLabel) {
+    pressEscape();
+    return {
+      status: "inspected",
+      reason,
+      threadLabel,
+      actionLabel,
+      dryRun: true,
+    };
+  }
+
+  let threadIdentitySequence = 0;
+  function getThreadIdentity(el) {
+    if (!el || !(el instanceof Element)) return null;
+    const row =
+      el.closest('[role="row"], [role="listitem"], article, div[role="gridcell"]') ||
+      el;
+    const hrefEl =
+      row.querySelector('a[href*="/messages/t/"]') ||
+      (row.tagName === "A" && row.getAttribute("href") ? row : null);
+    if (hrefEl && hrefEl.getAttribute("href")) {
+      return hrefEl.getAttribute("href");
+    }
+    const dataId = row.getAttribute("data-thread-id") || row.id;
+    if (dataId) return `id:${dataId}`;
+    if (!row.__thread_id) {
+      threadIdentitySequence++;
+      row.__thread_id = `thread-${threadIdentitySequence}`;
+    }
+    return row.__thread_id;
+  }
+
   // ---------------------------------------------------------------------------
   // Messenger selectors/actions
   // ---------------------------------------------------------------------------
-  function getThreadMenuButtons(skipLabels = new Set()) {
+  function getThreadMenuButtons(skipIdentities = new Set()) {
     const primary = visibleElements(SELECTORS.threadMenuButton);
     const fallback = primary.length
       ? primary
       : visibleElements(SELECTORS.threadMenuButtonFallback);
 
     return fallback
-      .map((el) => ({
-        el,
-        label: el.getAttribute("aria-label") || normalizedText(el),
-        top: el.getBoundingClientRect().top,
-      }))
+      .map((el) => {
+        const label = el.getAttribute("aria-label") || normalizedText(el);
+        const identity = getThreadIdentity(el) || label;
+        return {
+          el,
+          label,
+          identity,
+          top: el.getBoundingClientRect().top,
+        };
+      })
       .filter((item) => /^More options for/i.test(item.label || ""))
-      .filter((item) => !skipLabels.has(item.label))
+      .filter((item) => !skipIdentities.has(item.identity))
       .sort((a, b) => a.top - b.top);
   }
 
@@ -715,70 +759,149 @@ console.log("Current URL:", window.location.href);
     };
   }
 
-  function isMarketplaceDetailView() {
-    if (!/\/messages\/t\//i.test(location.pathname)) return false;
-
-    const hasMarketplaceBanner = visibleElements(
-      'a[href*="/marketplace/item/"], [role="button"][aria-label="More options"][aria-haspopup="dialog"]',
-    ).some((el) => {
-      const text = normalizedText(el);
-      return /marketplace|sold|see details|more options/i.test(text);
-    });
-
-    const hasConversationTitle =
-      visibleElements('[aria-label^="Conversation titled"]').length > 0;
-
-    return hasMarketplaceBanner || hasConversationTitle;
-  }
-
   function findMarketplaceHeaderMoreOptions() {
+    // 1. Direct search within a recognized Marketplace banner/container
+    const banner = findVisible(
+      '#marketplace-banner, [aria-label*="Marketplace" i], [data-testid*="marketplace" i], [role="region"][aria-label*="Marketplace" i]',
+    );
+    if (banner) {
+      const bannerBtn = visibleElements(
+        '[role="button"][aria-label="More options"], button[aria-label="More options"]',
+        banner,
+      ).find(
+        (el) =>
+          /^More options$/i.test(ownAccessibleText(el)) ||
+          el.getAttribute("aria-haspopup") === "dialog",
+      );
+      if (bannerBtn) return bannerBtn;
+    }
+
+    // 2. Main pane candidate search outside thread list
+    const threadList = document.querySelector(
+      '#thread-list, [role="navigation"], [aria-label="Conversations"]',
+    );
+    const threadListRight = threadList
+      ? threadList.getBoundingClientRect().right
+      : 0;
+
     const candidates = visibleElements(
-      '[role="button"][aria-label="More options"][aria-haspopup="dialog"], button[aria-label="More options"]',
+      '[role="button"][aria-label="More options"][aria-haspopup="dialog"], button[aria-label="More options"][aria-haspopup="dialog"], [role="button"][aria-label="More options"], button[aria-label="More options"]',
     )
-      .filter((el) => /^More options$/i.test(ownAccessibleText(el)))
       .filter((el) => {
-        const r = el.getBoundingClientRect();
-        // Marketplace product banner button: below the chat title, above message history, in the main pane.
+        if (threadList && threadList.contains(el)) return false;
+        const aria = el.getAttribute("aria-label") || "";
+        if (/^More options for/i.test(aria)) return false;
         return (
-          r.width > 120 && r.height >= 24 && r.x > 300 && r.y > 110 && r.y < 280
+          /^More options$/i.test(ownAccessibleText(el)) ||
+          el.getAttribute("aria-haspopup") === "dialog"
         );
       })
-      .sort((a, b) => {
-        const ar = a.getBoundingClientRect();
-        const br = b.getBoundingClientRect();
-        // Prefer the wide right-side product-banner More options button.
-        return br.width - ar.width || ar.y - br.y;
-      });
+      .map((el) => {
+        const r = el.getBoundingClientRect();
+        let score = 0;
 
-    return candidates[0] || null;
+        // Contextual checks: is it near marketplace terms or item links?
+        const container =
+          el.closest(
+            'div, section, header, [role="region"], [role="dialog"], article, main',
+          ) || el.parentElement;
+        const containerText = container ? normalizedText(container) : "";
+
+        if (
+          /marketplace|listing|sold|in stock|pending|see details|view listing/i.test(
+            containerText,
+          )
+        ) {
+          score += 100;
+        }
+
+        if (container && container.querySelector('a[href*="/marketplace/"]')) {
+          score += 80;
+        }
+
+        // Semantic attributes
+        if (el.getAttribute("aria-haspopup") === "dialog") {
+          score += 30;
+        }
+
+        // Geometry as ranking heuristic only (main pane / header area)
+        if (r.x >= threadListRight) {
+          score += 20;
+        }
+        if (r.y >= 0 && r.y < window.innerHeight * 0.5) {
+          score += 10;
+        }
+        if (r.width > 60) {
+          score += 10;
+        }
+
+        return { el, score, r };
+      })
+      // Only consider candidates with meaningful marketplace context or main pane dialog button
+      .filter((c) => c.score >= 50)
+      .sort(
+        (a, b) =>
+          b.score - a.score || b.r.width - a.r.width || a.r.y - b.r.y,
+      );
+
+    return candidates[0] ? candidates[0].el : null;
+  }
+
+  function isMarketplaceDetailView() {
+    if (!/\/messages\/t\//i.test(location.pathname) && !isFixturePage()) return false;
+
+    // 1. Genuinely Marketplace item link inside conversation pane
+    const hasMarketplaceItemLink = visibleElements(
+      'a[href*="/marketplace/item/"], a[href*="/marketplace/"]',
+    ).some((el) => {
+      // Exclude generic global nav bar links outside conversation
+      if (
+        el.closest('nav, [role="navigation"]') &&
+        !el.closest(
+          'main, [role="main"], [aria-label*="Marketplace" i], #marketplace-banner',
+        )
+      ) {
+        return false;
+      }
+      return true;
+    });
+
+    // 2. Marketplace product banner or specific badges/labels in the conversation view
+    const hasMarketplaceProductBanner =
+      visibleElements(
+        '#marketplace-banner, [role="region"][aria-label*="Marketplace" i], [data-testid*="marketplace" i]',
+      ).some(isVisible) ||
+      visibleElements(
+        '.marketplace-sub, [aria-label*="listing" i], a[href*="/marketplace/item/"]',
+      ).some(isVisible);
+
+    // 3. Marketplace specific header More Options
+    const hasMarketplaceSpecificHeader = Boolean(findMarketplaceHeaderMoreOptions());
+
+    return (
+      hasMarketplaceItemLink ||
+      hasMarketplaceProductBanner ||
+      hasMarketplaceSpecificHeader
+    );
   }
 
   async function ensureMarketplaceConversationVisible() {
     if (findMarketplaceHeaderMoreOptions()) return true;
 
-    const marketplaceEntry = visibleElements(SELECTORS.marketplaceCandidate)
-      .filter((el) => {
-        const r = el.getBoundingClientRect();
-        if (r.x > 360 || r.y < 100) return false;
-        return (
-          /^Marketplace\b/i.test(ownAccessibleText(el)) ||
-          /^Marketplace\b/i.test(normalizedText(el))
-        );
-      })
-      .sort(
-        (a, b) => a.getBoundingClientRect().y - b.getBoundingClientRect().y,
-      )[0];
+    const firstThread = visibleElements(
+      '#thread-list [role="listitem"], #thread-list article, div[role="gridcell"], a[href*="/messages/t/"]',
+    ).find(isVisible);
 
-    if (!marketplaceEntry) return false;
+    if (!firstThread) return false;
 
     console.log(
-      "Reopening Marketplace folder:",
-      normalizedText(marketplaceEntry),
+      "Opening Marketplace conversation from list:",
+      normalizedText(firstThread),
     );
-    realClick(marketplaceEntry);
+    realClick(firstThread);
 
     return Boolean(
-      await waitFor(() => findMarketplaceHeaderMoreOptions(), 4000, 150),
+      await waitFor(() => findMarketplaceHeaderMoreOptions(), 2000, 100),
     );
   }
 
@@ -820,7 +943,7 @@ console.log("Current URL:", window.location.href);
     return opened;
   }
 
-  async function performCurrentMarketplaceConversationDelete(actionConfig) {
+  async function performCurrentMarketplaceConversationDelete(actionConfig, skipLabels) {
     if (!isMarketplaceDetailView()) {
       const reopened = await ensureMarketplaceConversationVisible();
       if (!reopened) return { status: "empty" };
@@ -830,6 +953,11 @@ console.log("Current URL:", window.location.href);
       visibleElements('[aria-label^="Conversation titled"]').map(
         normalizedText,
       )[0] || "current Marketplace conversation";
+
+    if (skipLabels && skipLabels.has(title)) {
+      console.log("Marketplace conversation already processed:", title);
+      return { status: "empty" };
+    }
     showStatus(
       `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Opening Marketplace options`,
     );
@@ -860,6 +988,26 @@ console.log("Current URL:", window.location.href);
         reason: "marketplace_delete_item_missing",
         threadLabel: title,
       };
+    }
+
+    if (dryRunActive) {
+      const actionLabel = normalizedText(actionItem) || actionConfig.label;
+      announceDryRun(
+        `Found Marketplace thread: ${title}. Found menu action: ${actionLabel}. Would stop before selecting it.`,
+      );
+      skipLabels.add(title);
+      pressEscape();
+      await sleep(200);
+      dryRunInspectedCount += 1;
+      send("dryRunProgress", {
+        mode: activeMode,
+        count: 0,
+        inspectedCount: dryRunInspectedCount,
+        threadLabel: title,
+        actionLabel,
+      });
+      showStatus(`DRY RUN — Inspected Marketplace: ${title}`);
+      return dryRunResult(title, "dry_run_action_not_selected", actionLabel);
     }
 
     console.log(
@@ -937,40 +1085,24 @@ console.log("Current URL:", window.location.href);
       threadLabel: title,
     });
 
-    try {
-      const stored = await chrome.storage.local.get(["trialsFast"]);
-      await chrome.storage.local.set({
-        trialsFast: (stored.trialsFast || 0) + 1,
-      });
-    } catch (err) {
-      console.debug("Could not update trialsFast:", err);
-    }
 
-    await waitFor(
-      () =>
-        findMarketplaceHeaderMoreOptions() ||
-        !/\/messages\/t\//i.test(location.pathname),
-      4000,
-      200,
-    );
     await actionDelay();
 
-    // If Facebook drops us back to the Marketplace folder or a blank state, reopen the next current conversation.
-    if (shouldRun) {
-      await ensureMarketplaceConversationVisible();
+    if (skipLabels) {
+      skipLabels.add(title);
     }
 
     return { status: "done", threadLabel: title };
   }
 
-  async function performOneThreadAction(actionConfig, skipLabels) {
-    const buttons = getThreadMenuButtons(skipLabels);
+  async function performOneThreadAction(actionConfig, skipIdentities) {
+    const buttons = getThreadMenuButtons(skipIdentities);
     const target = buttons[0];
 
     if (!target) {
       if (activeMode === "deleteBuySell") {
         const marketplaceResult =
-          await performCurrentMarketplaceConversationDelete(actionConfig);
+          await performCurrentMarketplaceConversationDelete(actionConfig, skipIdentities);
         if (marketplaceResult.status !== "empty") return marketplaceResult;
       }
 
@@ -986,7 +1118,7 @@ console.log("Current URL:", window.location.href);
     const menuOpened = await openThreadMenu(target.el);
     if (!menuOpened) {
       console.warn("Could not open menu for:", threadLabel);
-      skipLabels.add(threadLabel);
+      skipIdentities.add(target.identity);
       pressEscape();
       await sleep(300);
       return { status: "skipped", reason: "menu_not_opened", threadLabel };
@@ -1002,10 +1134,32 @@ console.log("Current URL:", window.location.href);
         `${actionConfig.label} menu item not found for:`,
         threadLabel,
       );
-      skipLabels.add(threadLabel);
+      skipIdentities.add(target.identity);
       pressEscape();
       await sleep(300);
       return { status: "skipped", reason: "menu_item_missing", threadLabel };
+    }
+
+    if (dryRunActive) {
+      const actionLabel = normalizedText(actionItem) || actionConfig.label;
+      announceDryRun(
+        `Found thread: ${threadLabel.replace(/^More options for\s*/i, "")}. Found menu action: ${actionLabel}. Would stop before selecting it.`,
+      );
+      skipIdentities.add(target.identity);
+      pressEscape();
+      await sleep(200);
+      dryRunInspectedCount += 1;
+      send("dryRunProgress", {
+        mode: activeMode,
+        count: 0,
+        inspectedCount: dryRunInspectedCount,
+        threadLabel,
+        actionLabel,
+      });
+      showStatus(
+        `DRY RUN — Inspected ${dryRunInspectedCount}: ${threadLabel.replace(/^More options for\s*/i, "")}`,
+      );
+      return dryRunResult(threadLabel, "dry_run_action_not_selected", actionLabel);
     }
 
     console.log(
@@ -1030,7 +1184,7 @@ console.log("Current URL:", window.location.href);
           `Confirm button not found for ${actionConfig.label}:`,
           threadLabel,
         );
-        skipLabels.add(threadLabel);
+        skipIdentities.add(target.identity);
         pressEscape();
         await sleep(300);
         return { status: "skipped", reason: "confirm_missing", threadLabel };
@@ -1088,20 +1242,12 @@ console.log("Current URL:", window.location.href);
       threadLabel,
     });
 
-    try {
-      const stored = await chrome.storage.local.get(["trialsFast"]);
-      await chrome.storage.local.set({
-        trialsFast: (stored.trialsFast || 0) + 1,
-      });
-    } catch (err) {
-      console.debug("Could not update trialsFast:", err);
-    }
 
     await actionDelay();
     return { status: "done", threadLabel };
   }
 
-  async function runThreadLoop(mode) {
+  async function runThreadLoop(mode, options = {}) {
     if (busy) {
       console.warn("Automation is already running:", activeMode);
       return;
@@ -1124,36 +1270,127 @@ console.log("Current URL:", window.location.href);
     busy = true;
     shouldRun = true;
     activeMode = mode;
+    dryRunActive = Boolean(options.dryRun);
+
+    // Production default behavior remains unlimited (Infinity) unless explicitly constrained.
+    // Callers may pass an explicit maxActions (e.g. for testing specific batches), or enable
+    // an explicit development safety option (developmentSafetyLimit or safeTestMode).
+    const requestedMax = Number(options.maxActions);
+    if (Number.isFinite(requestedMax) && requestedMax > 0) {
+      maxActions = Math.floor(requestedMax);
+    } else if (options.developmentSafetyLimit || options.safeTestMode) {
+      maxActions = 1;
+    } else {
+      maxActions = Infinity;
+    }
     processedCount = 0;
-    const skippedLabels = new Set();
+    dryRunInspectedCount = 0;
+    activeSkippedCount = 0;
+    activeErrorCount = 0;
+    const skippedIdentities = new Set();
+    const inspectedIdentities = new Set();
 
     await loadSpeed();
 
-    showStatus(`${actionConfig.popupLabel}: starting...`);
-    send(actionConfig.startedAction, { mode });
+    if (dryRunActive) {
+      announceDryRun(
+        `${actionConfig.popupLabel} is active. No menu action or confirmation will be clicked.`,
+      );
+    } else if (Number.isFinite(maxActions)) {
+      console.warn(`[SAFETY LIMIT] Automation will stop after ${maxActions} action(s).`);
+      showStatus(`${actionConfig.popupLabel}: safety limit ${maxActions} action(s)`);
+    } else {
+      showStatus(`${actionConfig.popupLabel}: starting...`);
+    }
+    send(actionConfig.startedAction, { mode, dryRun: dryRunActive, maxActions });
 
     try {
+      if (mode === "deleteBuySell" && !isMarketplaceDetailView()) {
+        if (!isMarketplaceFolder()) {
+          showStatus("Opening Marketplace messages...");
+          await openMarketplaceMessages();
+          await sleep(500);
+        }
+        if (!isMarketplaceFolder() && !isMarketplaceDetailView()) {
+          console.warn("Could not confirm Marketplace folder; aborting deleteBuySell for safety.");
+          send("automationError", {
+            mode,
+            message: "Could not confirm Marketplace messages folder. Aborting to protect inbox messages.",
+          });
+          return;
+        }
+      } else if (mode === "delete" || mode === "archive") {
+        if (isMarketplaceFolder() || isMarketplaceDetailView() || isArchivedFolder()) {
+          showStatus("Opening regular messages...");
+          await openInboxMessages();
+          await sleep(500);
+        }
+        if (isMarketplaceFolder() || isMarketplaceDetailView()) {
+          console.warn("Still in Marketplace view; aborting regular action for safety.");
+          send("automationError", {
+            mode,
+            message: "Cannot execute regular action while in Marketplace view. Aborting for safety.",
+          });
+          return;
+        }
+      } else if (mode === "unarchive") {
+        if (!isArchivedFolder()) {
+          showStatus("Opening Archived chats...");
+          await openArchivedMessages();
+          await sleep(500);
+        }
+      }
+
       while (shouldRun) {
         const result = await performOneThreadAction(
           actionConfig,
-          skippedLabels,
+          dryRunActive ? inspectedIdentities : skippedIdentities,
         );
 
         if (result.status === "empty") {
-          console.log(actionConfig.emptyMessage);
+          const completionMessage = dryRunActive
+            ? `Dry run finished. Inspected ${dryRunInspectedCount} conversation(s). No actions were executed.`
+            : actionConfig.emptyMessage;
+          console.log(completionMessage);
+          persistAggregateRun(dryRunActive ? "Dry run complete" : "Completed");
           send(actionConfig.completeAction, {
             mode,
             count: processedCount,
-            message: actionConfig.emptyMessage,
+            inspectedCount: dryRunInspectedCount,
+            dryRun: dryRunActive,
+            message: completionMessage,
           });
           showStatus(
-            `${actionConfig.emptyMessage}. Total: ${formatNumber(processedCount)}`,
+            dryRunActive
+              ? `Dry run complete: ${dryRunInspectedCount} inspected`
+              : `${actionConfig.emptyMessage}. Total: ${formatNumber(processedCount)}`,
           );
           await sleep(1200);
           break;
         }
 
+        if (result.status === "inspected") {
+          if (dryRunInspectedCount >= maxActions) {
+            console.log(`[DRY RUN] Reached inspection limit of ${maxActions} thread(s).`);
+            shouldRun = false;
+            persistAggregateRun("Dry run complete");
+            send(actionConfig.completeAction, {
+              mode,
+              count: 0,
+              inspectedCount: dryRunInspectedCount,
+              dryRun: true,
+              message: `Dry run reached inspection limit of ${dryRunInspectedCount} thread(s).`,
+            });
+            showStatus(`Dry run complete: ${dryRunInspectedCount} inspected`);
+            await sleep(1200);
+            break;
+          }
+          await sleep(100);
+          continue;
+        }
+
         if (result.status === "skipped") {
+          activeSkippedCount++;
           send("automationWarning", {
             mode,
             count: processedCount,
@@ -1162,9 +1399,10 @@ console.log("Current URL:", window.location.href);
           });
 
           if (
-            skippedLabels.size >= Math.max(1, getThreadMenuButtons().length)
+            skippedIdentities.size >= Math.max(1, getThreadMenuButtons().length)
           ) {
             console.warn("All visible thread menus were skipped; stopping.");
+            persistAggregateRun("All items skipped");
             send(actionConfig.completeAction, {
               mode,
               count: processedCount,
@@ -1177,9 +1415,22 @@ console.log("Current URL:", window.location.href);
             break;
           }
         }
+
+        if (processedCount >= maxActions) {
+          console.warn(`[SAFETY LIMIT] Reached ${maxActions} completed action(s).`);
+          shouldRun = false;
+          persistAggregateRun("Safety limit reached");
+          send(actionConfig.completeAction, {
+            mode,
+            count: processedCount,
+            message: `Safety limit reached after ${processedCount} action(s).`,
+          });
+        }
       }
     } catch (err) {
       console.error(`${actionConfig.label} loop failed:`, err);
+      activeErrorCount++;
+      persistAggregateRun("Error");
       send(actionConfig.errorAction, {
         mode,
         count: processedCount,
@@ -1193,8 +1444,98 @@ console.log("Current URL:", window.location.href);
       shouldRun = false;
       busy = false;
       activeMode = null;
+      dryRunActive = false;
+      maxActions = Infinity;
+      dryRunInspectedCount = 0;
       hideStatus();
     }
+  }
+
+  function isMarketplaceFolder() {
+    if (isFixturePage()) {
+      return (
+        document.querySelector("#marketplace-entry")?.classList.contains("active") ||
+        document.querySelector("#marketplace-banner")?.style.display !== "none"
+      );
+    }
+
+    // Determine Marketplace state using Messenger-specific context only.
+    // Never rely on generic site-wide Facebook marketplace links (e.g. top nav a[href*="/marketplace/"]).
+
+    // 1. Messenger route state
+    if (/\/messages\/marketplace/i.test(location.pathname)) {
+      return true;
+    }
+
+    // 2. Active Messenger navigation folder item specifically for Marketplace
+    const activeNavMarketplace = visibleElements(
+      'nav a[href*="/marketplace/"], [role="navigation"] a[href*="/marketplace/"]',
+    ).some((el) => {
+      const isCurrent =
+        el.getAttribute("aria-current") === "page" ||
+        el.getAttribute("aria-selected") === "true";
+      const hasActiveClass = /(?:^|\s)(?:active|selected)(?:\s|$)/i.test(
+        el.className || "",
+      );
+      return isCurrent || hasActiveClass;
+    });
+    if (activeNavMarketplace) return true;
+
+    // 3. Messenger chats list heading specifically indicating Marketplace
+    const hasMarketplaceHeading = visibleElements(
+      'div[role="navigation"] h1, div[role="navigation"] h2, div[role="navigation"] [role="heading"], [aria-label="Chats"] [role="heading"], [aria-label="Chats"] h1, [aria-label="Chats"] h2',
+    ).some((el) => /^Marketplace$/i.test(normalizedText(el)));
+    if (hasMarketplaceHeading) return true;
+
+    // 4. In-conversation Marketplace listing banner
+    if (isMarketplaceDetailView()) {
+      return true;
+    }
+
+    return false;
+  }
+
+  function isArchivedFolder() {
+    if (isFixturePage()) {
+      return (
+        document.querySelector("#fixture-status")?.textContent?.includes("Archived") ||
+        false
+      );
+    }
+    return visibleElements(
+      'div[role="navigation"] h1, div[role="navigation"] h2, div[role="navigation"] [role="heading"], [aria-label="Chats"] [role="heading"], h1, h2, [role="heading"]',
+    ).some((el) =>
+      /^Archived chats/i.test(normalizedText(el)),
+    );
+  }
+
+  async function openInboxMessages() {
+    if (!isMessengerPage()) return false;
+
+    if (isFixturePage()) {
+      const inboxNav = document.querySelector("#inbox-entry");
+      if (inboxNav) {
+        realClick(inboxNav);
+        await sleep(300);
+        return true;
+      }
+    }
+
+    const candidate = visibleElements(
+      'a[aria-label="Chats"], [role="link"][aria-label="Chats"], a[href="/messages/"], a[href="/messages/t/"], [aria-label="Back to chats"], [aria-label="Back"], [role="button"][aria-label="Back"]',
+    ).find((el) => {
+      const label = (el.getAttribute("aria-label") || "").trim();
+      const text = normalizedText(el);
+      return /^(Chats|Back to chats|Back)$/i.test(label) || /^(Chats|Inbox)$/i.test(text);
+    });
+
+    if (candidate) {
+      console.log("Navigating back to regular chats/inbox:", candidate);
+      realClick(candidate);
+      await sleep(500);
+      return true;
+    }
+    return false;
   }
 
   async function openMarketplaceMessages() {
@@ -1322,14 +1663,30 @@ console.log("Current URL:", window.location.href);
     const action = request && request.action;
     console.log("📨 Message received:", action);
 
+    const loopActions = new Set([
+      "deleteMsgs",
+      "archiveMsgs",
+      "deleteBuySell",
+      "unarchiveAll",
+    ]);
+    if (loopActions.has(action) && busy) {
+      sendResponse &&
+        sendResponse({
+          ok: false,
+          message: `Automation is already running (${activeMode || "unknown"}).`,
+          busy: true,
+        });
+      return false;
+    }
+
     switch (action) {
       case "deleteMsgs":
-        runThreadLoop("delete");
+        runThreadLoop("delete", request);
         sendResponse && sendResponse({ ok: true });
         return true;
 
       case "archiveMsgs":
-        runThreadLoop("archive");
+        runThreadLoop("archive", request);
         sendResponse && sendResponse({ ok: true });
         return true;
 
@@ -1339,7 +1696,7 @@ console.log("Current URL:", window.location.href);
         return true;
 
       case "deleteBuySell":
-        runThreadLoop("deleteBuySell");
+        runThreadLoop("deleteBuySell", request);
         sendResponse && sendResponse({ ok: true });
         return true;
 
@@ -1349,7 +1706,7 @@ console.log("Current URL:", window.location.href);
         return true;
 
       case "unarchiveAll":
-        runThreadLoop("unarchive");
+        runThreadLoop("unarchive", request);
         sendResponse && sendResponse({ ok: true });
         return true;
 
@@ -1357,6 +1714,21 @@ console.log("Current URL:", window.location.href);
         stopAutomation();
         sendResponse && sendResponse({ ok: true });
         return true;
+
+      case "getAutomationState":
+        sendResponse &&
+          sendResponse({
+            ok: true,
+            running: busy,
+            stopping: busy && !shouldRun,
+            mode: activeMode,
+            dryRun: dryRunActive,
+            processed: processedCount,
+            inspected: dryRunInspectedCount,
+            skipped: activeSkippedCount,
+            errors: activeErrorCount,
+          });
+        return false;
 
       case "debugSelectors": {
         const payload = getDebugSnapshot();
@@ -1408,5 +1780,15 @@ console.log("Current URL:", window.location.href);
     selectors: SELECTORS,
     snapshot: getDebugSnapshot,
     stop: stopAutomation,
+    isFixturePage,
+    isBusy: () => busy,
+    isMarketplaceFolder,
+    isMarketplaceDetailView,
+    findMarketplaceHeaderMoreOptions,
+    isArchivedFolder,
+    openInboxMessages,
+    openMarketplaceMessages,
+    getInspectedCount: () => dryRunInspectedCount,
+    getProcessedCount: () => processedCount,
   };
 })();

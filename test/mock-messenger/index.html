@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en" data-fb-cleaner-fixture="true">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Messenger — Local Mock Fixture</title>
+    <link rel="stylesheet" href="/test/mock-messenger/mock-messenger.css" />
+  </head>
+  <body>
+    <div class="messenger-shell">
+      <aside class="sidebar">
+        <header class="sidebar-header">
+          <h1 class="logo">Chats</h1>
+          <span id="fixture-status" role="status" class="status-badge">Inbox (11)</span>
+          <button
+            id="settings"
+            type="button"
+            role="button"
+            aria-label="Settings, help and more"
+            aria-controls="mw-inbox-settings-menu"
+            aria-haspopup="menu"
+            class="icon-button"
+            title="Settings"
+          >
+            ⚙️
+          </button>
+        </header>
+        <nav class="sidebar-nav">
+          <button id="inbox-entry" type="button" role="button" class="nav-item active">
+            Inbox
+          </button>
+          <button id="marketplace-entry" type="button" role="button" class="nav-item">
+            Marketplace
+          </button>
+        </nav>
+        <section id="thread-list" role="list" aria-label="Conversations" class="threads-container"></section>
+      </aside>
+      <main class="chat-main">
+        <div id="marketplace-banner" class="marketplace-banner" style="display: none;">
+          <div class="marketplace-info">
+            <div class="marketplace-title" aria-label="Conversation titled Test Marketplace Buyer">
+              Test Marketplace Buyer
+            </div>
+            <div class="marketplace-sub">Marketplace Listing • In stock</div>
+          </div>
+          <button
+            id="marketplace-header-more"
+            type="button"
+            role="button"
+            aria-label="More options"
+            aria-haspopup="dialog"
+            class="marketplace-header-more-btn"
+          >
+            More options
+          </button>
+        </div>
+        <div id="main-placeholder" class="main-placeholder">
+          <p>Select a conversation or use the Chrome extension popup to test actions.</p>
+        </div>
+      </main>
+    </div>
+    <script src="/test/mock-messenger/generated-structure.js"></script>
+    <script src="/test/mock-messenger/mock-messenger.js"></script>
+  </body>
+</html>
