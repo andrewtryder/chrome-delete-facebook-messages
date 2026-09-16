@@ -71,6 +71,13 @@ Breaking changes trigger a **MAJOR** version bump (e.g., 3.8.0 → 4.0.0).
 
 > **Note for Maintainers:** Releases are **never** created manually. Do not create manual Git tags or manual GitHub Releases.
 
+### Versioning & Chrome Web Store Semantics
+
+- The previous release uploaded to the Chrome Web Store was version `3.8`.
+- The repository baseline has been normalized to `3.8.0` (SemVer 2.0.0 requires `MAJOR.MINOR.PATCH`).
+- Chrome Web Store parses version strings as dot-separated integers. The next automated release will be `3.8.1` (patch) or `3.9.0` (minor), both of which sort cleanly after `3.8` in CWS integer component comparison.
+- Manifest `version` in [`manifest.json`](manifest.json) is the authoritative version and is kept synchronized automatically by Release Please.
+
 1. As conventional PRs merge into `main`, GitHub Actions runs `.github/workflows/release-please.yml`.
 2. Release Please reviews commits since the last release tag (or bootstrap boundary SHA) and opens or updates a **Release PR** (e.g. `chore(main): release 3.8.1`).
 3. The Release PR automatically:
@@ -97,15 +104,30 @@ Dependabot PRs use the Conventional Commit prefix `chore(deps):` and are grouped
 
 ## Local Development & Validation
 
-Before pushing, verify your workflows and tests locally:
+Before pushing, verify your workflows, manifest, and tests locally:
 
-### Run Actionlint
+### 1. Validate Production Manifest
+Verify no development localhost matches are present:
+```bash
+npm run manifest:check
+```
+
+### 2. Validate & Update Fixture Model
+Verify privacy guarantees and derive the normalized structural fixture model:
+```bash
+npm run fixture:validate
+npm run fixture:generate
+# or
+npm run fixture:update
+```
+
+### 3. Run Actionlint
 If [actionlint](https://github.com/rhysd/actionlint) is installed locally:
 ```bash
 actionlint -color
 ```
 
-### Run Tests
+### 4. Run Automated Playwright Tests
 ```bash
 npm test
 ```

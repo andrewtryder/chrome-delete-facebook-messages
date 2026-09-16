@@ -33,6 +33,31 @@ npm run serve:fixture
 # Open http://127.0.0.1:4173/test/mock-messenger/ in Chrome
 ```
 
+### Development Manifest vs Shipping Manifest
+
+To test the unpacked extension manually against the local mock fixture server in Chrome, enable development host permissions:
+```bash
+npm run manifest:dev   # Adds localhost / 127.0.0.1 matches to manifest.json
+```
+
+Before packaging or committing for production:
+```bash
+npm run manifest:prod  # Restores strictly production matches (Facebook/Messenger only)
+npm run manifest:check # Validates no localhost matches exist in manifest.json
+```
+
+### Fixture Generation Pipeline
+
+To refresh the mock fixture structure from a sanitized DevTools capture:
+1. Capture sanitized DOM via `test/capture-messenger-fixture.js` in DevTools.
+2. Validate and generate normalized structural model:
+```bash
+npm run fixture:validate  # Validates privacy and normalizes runtime IDs
+npm run fixture:generate  # Derives normalized structural model for mock-messenger
+# or run both together:
+npm run fixture:update
+```
+
 ---
 
 ## Release & Versioning (Maintainer Guide)
@@ -40,6 +65,13 @@ npm run serve:fixture
 This repository uses **Semantic Versioning**, **Conventional Commits**, and **Google's Release Please** for automated release management.
 
 > ⚠️ **Important:** Do NOT create releases or tags manually.
+
+### Versioning & Chrome Web Store Semantics
+
+- The previous release uploaded to the Chrome Web Store was version `3.8`.
+- The repository baseline has been normalized to `3.8.0` (SemVer 2.0.0 requires `MAJOR.MINOR.PATCH`).
+- Chrome Web Store parses version strings as dot-separated integers. The next automated release will be `3.8.1` (patch) or `3.9.0` (minor), both of which sort cleanly after `3.8` in CWS integer component comparison.
+- Manifest `version` in [`manifest.json`](manifest.json) is the authoritative version and is kept synchronized automatically by Release Please.
 
 ### Automated Release Flow
 
