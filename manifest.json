@@ -2,7 +2,7 @@
   "update_url": "https://clients2.google.com/service/update2/crx",
   "name": "Delete Facebook Messages",
   "short_name": "Msg Cleaner",
-  "version": "3.8.0",
+  "version": "3.9.0",
   "manifest_version": 3,
   "description": "Open-source browser extension to preview, delete, archive, and restore Messenger conversations.",
   "author": "andrewtryder",
