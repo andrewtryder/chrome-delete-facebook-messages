@@ -25,6 +25,7 @@ const EXPLICIT_RUNTIME_FILES = [
   { src: "src/browser_action/css/style.css", dest: "src/browser_action/css/style.css" },
   { src: "src/browser_action/js/browser_action.js", dest: "src/browser_action/js/browser_action.js" },
   { src: "src/browser_action/assets/logo.svg", dest: "src/browser_action/assets/logo.svg" },
+  { src: "LICENSE", dest: "LICENSE" },
 ];
 
 function cleanDir(targetDir) {

@@ -92,3 +92,9 @@ This repository uses **Semantic Versioning**, **Conventional Commits**, and **Go
 5. Release Please tags the release (e.g. `v3.8.1`) and creates the GitHub Release.
 
 For more details on commit formatting and workflow rules, see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## License
+
+This project is open source and available under the [MIT License](LICENSE).
