@@ -15,42 +15,36 @@ const LOCALHOST_MATCHES = [
   "http://localhost:4173/*",
 ];
 
-const ASSET_DIRS = [
-  "css",
-  "icons",
-  "js",
-  "src/browser_action",
+// Explicit required runtime files for extension package
+const EXPLICIT_RUNTIME_FILES = [
+  { src: "background.js", dest: "background.js" },
+  { src: "js/script.js", dest: "js/script.js" },
+  { src: "icons/128.png", dest: "icons/128.png" },
+  { src: "icons/256.png", dest: "icons/256.png" },
+  { src: "src/browser_action/browser_action.html", dest: "src/browser_action/browser_action.html" },
+  { src: "src/browser_action/css/style.css", dest: "src/browser_action/css/style.css" },
+  { src: "src/browser_action/js/browser_action.js", dest: "src/browser_action/js/browser_action.js" },
+  { src: "src/browser_action/assets/logo.svg", dest: "src/browser_action/assets/logo.svg" },
 ];
 
-const ASSET_FILES = [
-  "background.js",
-];
-
-function copyRecursive(src, dest) {
-  if (!fs.existsSync(src)) return;
-  const stat = fs.statSync(src);
-  if (stat.isDirectory()) {
-    fs.mkdirSync(dest, { recursive: true });
-    for (const child of fs.readdirSync(src)) {
-      copyRecursive(path.join(src, child), path.join(dest, child));
-    }
-  } else {
-    fs.mkdirSync(path.dirname(dest), { recursive: true });
-    fs.copyFileSync(src, dest);
+function cleanDir(targetDir) {
+  if (fs.existsSync(targetDir)) {
+    fs.rmSync(targetDir, { recursive: true, force: true });
   }
+  fs.mkdirSync(targetDir, { recursive: true });
 }
 
 function copyExtensionAssets(targetDir) {
-  fs.mkdirSync(targetDir, { recursive: true });
+  cleanDir(targetDir);
 
-  for (const dir of ASSET_DIRS) {
-    copyRecursive(path.join(ROOT, dir), path.join(targetDir, dir));
-  }
-
-  for (const file of ASSET_FILES) {
-    const srcPath = path.join(ROOT, file);
+  for (const item of EXPLICIT_RUNTIME_FILES) {
+    const srcPath = path.join(ROOT, item.src);
+    const destPath = path.join(targetDir, item.dest);
     if (fs.existsSync(srcPath)) {
-      fs.copyFileSync(srcPath, path.join(targetDir, file));
+      fs.mkdirSync(path.dirname(destPath), { recursive: true });
+      fs.copyFileSync(srcPath, destPath);
+    } else {
+      console.warn(`Warning: Expected asset file not found: ${item.src}`);
     }
   }
 }
