@@ -1,5 +1,9 @@
 # Delete Facebook Messages
 
+<p align="center">
+  <img src="docs/images/icon.png" alt="Delete Facebook Messages icon" width="128">
+</p>
+
 A small, open-source Chrome extension for managing Facebook Messenger conversations from a simple control panel.
 
 Preview what will happen first, then delete, archive, or restore conversations when you're ready.
