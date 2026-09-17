@@ -78,7 +78,7 @@ test.beforeEach(async ({ context, page }) => {
   await page.addScriptTag({ content: scriptContent });
 
   // Wait for extension debug hook to be available
-  await page.waitForFunction(() => typeof window.FBChatsCleanerDebug !== "undefined");
+  await page.waitForFunction(() => typeof window.DeleteFacebookMessagesDebug !== "undefined");
 });
 
 // Helper to send messages to the injected content script
@@ -114,7 +114,7 @@ async function getSentMessages(page) {
 
 test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
   test("1. Detect fake conversations", async ({ page }) => {
-    const snapshot = await page.evaluate(() => window.FBChatsCleanerDebug.snapshot());
+    const snapshot = await page.evaluate(() => window.DeleteFacebookMessagesDebug.snapshot());
     expect(snapshot.threadMenuButtonCount).toBe(11);
     expect(snapshot.buttons.length).toBe(11);
     expect(snapshot.buttons[0].label).toContain("More options for Person 001");
@@ -318,12 +318,12 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     // Delete first entry ("Person 001")
     await dispatchExtensionMessage(page, "deleteMsgs", { maxActions: 1 });
     await page.waitForFunction(() => window.MockMessenger.state.deletedCount === 1);
-    await page.waitForFunction(() => !window.FBChatsCleanerDebug.isBusy());
+    await page.waitForFunction(() => !window.DeleteFacebookMessagesDebug.isBusy());
 
     // Next entry is the first "Person 002", delete it
     await dispatchExtensionMessage(page, "deleteMsgs", { maxActions: 1 });
     await page.waitForFunction(() => window.MockMessenger.state.deletedCount === 2);
-    await page.waitForFunction(() => !window.FBChatsCleanerDebug.isBusy());
+    await page.waitForFunction(() => !window.DeleteFacebookMessagesDebug.isBusy());
 
     // Now verify one "Person 002" remains
     const remainingPersons = await page.evaluate(() =>
@@ -420,7 +420,7 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     });
 
     // Wait until automation completely terminates and clears busy state
-    await page.waitForFunction(() => !window.FBChatsCleanerDebug.isBusy());
+    await page.waitForFunction(() => !window.DeleteFacebookMessagesDebug.isBusy());
 
     // Verify multiple distinct conversations were inspected without re-inspecting the same one
     const dryRunEvents = await page.evaluate(() =>
@@ -489,7 +489,7 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     await page.waitForFunction(() =>
       window._sentMessages.some((m) => m.action === "noBuySellMsgs"),
     );
-    await page.waitForFunction(() => !window.FBChatsCleanerDebug.isBusy());
+    await page.waitForFunction(() => !window.DeleteFacebookMessagesDebug.isBusy());
 
     const marketplaceCount = await page.evaluate(() => window.MockMessenger.state.marketplace.length);
     expect(marketplaceCount).toBe(0);
@@ -514,7 +514,7 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     await page.waitForFunction(() =>
       window._sentMessages.some((m) => m.action === "deleteProgress" && m.count === 1),
     );
-    await page.waitForFunction(() => !window.FBChatsCleanerDebug.isBusy());
+    await page.waitForFunction(() => !window.DeleteFacebookMessagesDebug.isBusy());
 
     // Should have navigated back to inbox and deleted 1 regular thread without touching marketplace
     expect(await page.evaluate(() => window.MockMessenger.state.view)).toBe("inbox");
@@ -527,7 +527,7 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     await page.waitForFunction(() =>
       window._sentMessages.some((m) => m.action === "deleteBuySellProgress" && m.count === 1),
     );
-    await page.waitForFunction(() => !window.FBChatsCleanerDebug.isBusy());
+    await page.waitForFunction(() => !window.DeleteFacebookMessagesDebug.isBusy());
 
     // Should have navigated to marketplace and deleted 1 marketplace thread
     expect(await page.evaluate(() => window.MockMessenger.state.view)).toBe("marketplace");
@@ -570,7 +570,7 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
 
     // Stop automation safely
     await dispatchExtensionMessage(page, "stopAutomation");
-    await page.waitForFunction(() => !window.FBChatsCleanerDebug.isBusy());
+    await page.waitForFunction(() => !window.DeleteFacebookMessagesDebug.isBusy());
 
     const deleted = await page.evaluate(() => window.MockMessenger.state.deletedCount);
     expect(deleted).toBeGreaterThanOrEqual(2);
@@ -583,7 +583,7 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     await page.waitForFunction(() =>
       window._sentMessages.some((m) => m.action === "noMessagesToDlt" && m.count === 1),
     );
-    await page.waitForFunction(() => !window.FBChatsCleanerDebug.isBusy());
+    await page.waitForFunction(() => !window.DeleteFacebookMessagesDebug.isBusy());
 
     const deleted = await page.evaluate(() => window.MockMessenger.state.deletedCount);
     expect(deleted).toBe(1);
@@ -605,9 +605,9 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     // On real Facebook page logic, isMarketplaceFolder should still return false
     // because the global nav link is not an active Messenger folder or heading.
     const isMarketplaceOnProductionLogic = await page.evaluate(() => {
-      delete document.documentElement.dataset.fbCleanerFixture;
-      const detected = window.FBChatsCleanerDebug.isMarketplaceFolder();
-      document.documentElement.dataset.fbCleanerFixture = "true";
+      delete document.documentElement.dataset.deleteFacebookMessagesFixture;
+      const detected = window.DeleteFacebookMessagesDebug.isMarketplaceFolder();
+      document.documentElement.dataset.deleteFacebookMessagesFixture = "true";
       return detected;
     });
 
@@ -668,7 +668,7 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     });
 
     const isMarketplace = await page.evaluate(() => {
-      return window.FBChatsCleanerDebug.isMarketplaceDetailView();
+      return window.DeleteFacebookMessagesDebug.isMarketplaceDetailView();
     });
 
     expect(isMarketplace).toBe(false);

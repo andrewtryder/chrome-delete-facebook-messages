@@ -15,7 +15,9 @@
     "manifest:check": "node scripts/dev-manifest.js --check",
     "fixture:validate": "node test/update-fixture.js",
     "fixture:generate": "node test/generate-fixture.js",
-    "fixture:update": "npm run fixture:validate && npm run fixture:generate"
+    "fixture:update": "npm run fixture:validate && npm run fixture:generate",
+    "icons:generate": "node scripts/generate-icons.js",
+    "audit:legacy": "node scripts/check-legacy-references.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1"

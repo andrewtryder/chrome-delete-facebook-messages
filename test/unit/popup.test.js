@@ -7,6 +7,7 @@ const path = require("path");
 
 const {
   checkUrl,
+  isExtensionUrl,
   getOperationRuntimeAction,
   getOperationName,
   getProcessedLabel,
@@ -190,5 +191,27 @@ describe("Popup Unit Tests — Zero Remote Resources Audit", () => {
 
     assert.equal(remoteLinkMatch, null, "Found remote stylesheet link in popup HTML");
     assert.equal(remoteScriptMatch, null, "Found remote script tag in popup HTML");
+  });
+});
+
+describe("Popup Unit Tests — Extension and Internal URL Detection", () => {
+  test("identifies extension and browser internal URLs correctly", () => {
+    assert.equal(isExtensionUrl("chrome-extension://abc123xyz/src/browser_action/browser_action.html"), true);
+    assert.equal(isExtensionUrl("moz-extension://abc123xyz/popup.html"), true);
+    assert.equal(isExtensionUrl("chrome://newtab/"), true);
+    assert.equal(isExtensionUrl("about:blank"), true);
+    assert.equal(isExtensionUrl("edge://extensions/"), true);
+    assert.equal(isExtensionUrl("brave://settings/"), true);
+    assert.equal(isExtensionUrl(""), true);
+    assert.equal(isExtensionUrl(undefined), true);
+    assert.equal(isExtensionUrl(null), true);
+  });
+
+  test("rejects regular web URLs as non-extension URLs", () => {
+    assert.equal(isExtensionUrl("https://www.facebook.com/messages/"), false);
+    assert.equal(isExtensionUrl("https://www.messenger.com/"), false);
+    assert.equal(isExtensionUrl("https://www.google.com/"), false);
+    assert.equal(isExtensionUrl("http://127.0.0.1:4173/"), false);
+    assert.equal(isExtensionUrl("http://localhost:3000/"), false);
   });
 });

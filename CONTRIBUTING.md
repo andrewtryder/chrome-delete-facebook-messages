@@ -1,4 +1,4 @@
-# Contributing to Delete Facebook Messages Fast
+# Contributing to Delete Facebook Messages
 
 Thank you for contributing! To maintain high code quality and enable automated releases, this repository follows Semantic Versioning, Conventional Commits, and automated release grooming via Google's Release Please.
 

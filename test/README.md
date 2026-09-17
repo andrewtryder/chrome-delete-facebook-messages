@@ -32,9 +32,9 @@ To capture the current Messenger DOM structure without leaking private data:
 4. Open [`test/capture-messenger-fixture.js`](capture-messenger-fixture.js), copy its entire contents, paste it into the DevTools Console, and press **Enter**.
 5. To download the sanitized structure JSON file, run:
    ```javascript
-   FBChatsFixtureCapture.download();
+   DeleteFacebookMessagesFixtureCapture.download();
    ```
-   *(Or copy to clipboard by running `FBChatsFixtureCapture.copy()`)*.
+   *(Or copy to clipboard by running `DeleteFacebookMessagesFixtureCapture.copy()`)*.
 6. The file will download as `messenger-structure.json`. Move this file to `test/fixtures/messenger-structure.json`.
 
 ---
@@ -97,7 +97,7 @@ The mock fixture includes:
 2. Enable **Developer mode** (top right toggle).
 3. Click **Load unpacked** and select the root directory of this repository (`chrome-delete-facebook-messages`).
 4. Navigate to [http://127.0.0.1:4173/test/mock-messenger/](http://127.0.0.1:4173/test/mock-messenger/).
-5. The fixture page is marked with `<html data-fb-cleaner-fixture="true">`, allowing the content script and popup to safely recognize it as a valid test target.
+5. The fixture page is marked with `<html data-delete-facebook-messages-fixture="true">`, allowing the content script and popup to safely recognize it as a valid test target.
 6. Click the extension icon in Chrome's toolbar to open the popup and trigger operations.
 
 ### Option B: Automated Testing with Playwright
@@ -182,7 +182,7 @@ To inspect selector matches on any page (real Messenger or local fixture):
 1. Open DevTools Console.
 2. Run:
    ```javascript
-   FBChatsCleanerDebug.snapshot();
+   DeleteFacebookMessagesDebug.snapshot();
    ```
 3. This displays a diagnostic table containing:
    - Total detected thread menu buttons
@@ -197,7 +197,7 @@ To inspect selector matches on any page (real Messenger or local fixture):
 When Facebook updates Messenger's DOM structure (e.g. changing `aria-label`, button nesting, or dialog classes):
 
 1. Open the updated Facebook Messenger page in Chrome.
-2. Run `FBChatsFixtureCapture.download()` from the DevTools Console as described in Step 1.
+2. Run `DeleteFacebookMessagesFixtureCapture.download()` from the DevTools Console as described in Step 1.
 3. Validate and update the fixture:
    ```bash
    node test/update-fixture.js ~/Downloads/messenger-structure.json

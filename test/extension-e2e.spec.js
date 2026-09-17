@@ -55,12 +55,12 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
     await page.goto("http://127.0.0.1:4173/");
 
     await page.waitForFunction(
-      () => document.documentElement.getAttribute("data-fb-cleaner-injected") === "true",
+      () => document.documentElement.getAttribute("data-delete-facebook-messages-injected") === "true",
       { timeout: 5000 },
     );
 
     const isInjected = await page.evaluate(
-      () => document.documentElement.getAttribute("data-fb-cleaner-injected") === "true",
+      () => document.documentElement.getAttribute("data-delete-facebook-messages-injected") === "true",
     );
     expect(isInjected).toBe(true);
     await page.close();
@@ -802,5 +802,37 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
     await popupPage.close();
     await fixturePage.close();
+  });
+
+  test("25. Popup displays Open Messenger when Messenger is not open, and clicking it opens Messenger tab", async () => {
+    // Intercept navigation to avoid real external network requests
+    await context.route("**/*facebook.com/**", (route) => route.abort());
+
+    const popupPage = await context.newPage();
+    await popupPage.goto(
+      `chrome-extension://${extensionId}/src/browser_action/browser_action.html`,
+    );
+
+    await popupPage.waitForFunction(
+      () => document.getElementById("status-heading")?.textContent === "Messenger not detected",
+      { timeout: 6000 },
+    );
+
+    const heading = await popupPage.locator("#status-heading").textContent();
+    expect(heading).toBe("Messenger not detected");
+
+    const openBtn = popupPage.locator('[data-testid="open-messenger-btn"]');
+    expect(await openBtn.isVisible()).toBe(true);
+
+    const [newPage] = await Promise.all([
+      context.waitForEvent("page"),
+      openBtn.click(),
+    ]);
+
+    expect(decodeURIComponent(newPage.url())).toContain("facebook.com/messages");
+
+    await newPage.close();
+    await popupPage.close();
+    await context.unroute("**/*facebook.com/**");
   });
 });

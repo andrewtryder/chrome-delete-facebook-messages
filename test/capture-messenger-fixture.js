@@ -10,10 +10,10 @@
  * 3. Open Chrome DevTools (F12 or Cmd+Option+I), switch to the "Console" tab.
  * 4. Paste the contents of this file and press Enter.
  * 5. Run:
- *      FBChatsFixtureCapture.inspectMarketplace()   // Diagnostics of detected Marketplace elements
- *      FBChatsFixtureCapture.download()            // Downloads sanitized messenger-structure.json
+ *      DeleteFacebookMessagesFixtureCapture.inspectMarketplace()   // Diagnostics of detected Marketplace elements
+ *      DeleteFacebookMessagesFixtureCapture.download()            // Downloads sanitized messenger-structure.json
  *    or:
- *      FBChatsFixtureCapture.copy()                // Copies sanitized JSON to clipboard
+ *      DeleteFacebookMessagesFixtureCapture.copy()                // Copies sanitized JSON to clipboard
  *
  * PRIVACY GUARANTEES:
  * - Observation-only: NO clicks, NO network requests, NO storage/cookie reads.
@@ -28,7 +28,7 @@
   if (typeof module === "object" && module.exports) {
     module.exports = factory();
   } else {
-    root.FBChatsFixtureCapture = factory();
+    root.DeleteFacebookMessagesFixtureCapture = factory();
   }
 })(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
