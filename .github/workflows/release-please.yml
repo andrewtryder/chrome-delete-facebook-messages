@@ -15,7 +15,34 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: googleapis/release-please-action@v5
+        id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
+
+      - name: Checkout repository for asset packaging
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Build and package extension zip
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        run: |
+          npm ci
+          npm run build
+          npm run package
+
+      - name: Upload release zip assets
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG_NAME: ${{ steps.release.outputs.tag_name }}
+        run: |
+          gh release upload "${TAG_NAME}" dist/*.zip --clobber

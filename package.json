@@ -17,7 +17,8 @@
     "fixture:generate": "node test/generate-fixture.js",
     "fixture:update": "npm run fixture:validate && npm run fixture:generate",
     "icons:generate": "node scripts/generate-icons.js",
-    "audit:legacy": "node scripts/check-legacy-references.js"
+    "audit:legacy": "node scripts/check-legacy-references.js",
+    "package": "node scripts/package-zip.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.56.1"

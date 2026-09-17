@@ -1,0 +1,45 @@
+name: release-assets
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (leave empty for latest release)"
+        required: false
+        default: ""
+
+permissions:
+  contents: write
+
+jobs:
+  publish-release-zip:
+    name: publish-release-zip
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies and build
+        run: |
+          npm ci
+          npm run build
+          npm run package
+
+      - name: Publish zip assets to release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          TARGET_TAG="${INPUT_TAG:-${RELEASE_TAG}}"
+          if [ -z "$TARGET_TAG" ]; then
+            TARGET_TAG=$(gh release view --json tagName -q .tagName)
+          fi
+          echo "Uploading release zip assets to: ${TARGET_TAG}"
+          gh release upload "${TARGET_TAG}" dist/*.zip --clobber

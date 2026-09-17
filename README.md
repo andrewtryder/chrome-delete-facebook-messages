@@ -42,11 +42,18 @@ The extension includes a second confirmation step before an actual delete begins
 
 ## Install
 
-### Chrome Web Store
+### Download Release ZIP (Recommended)
 
-The current open-source version has **not yet been republished to the Chrome Web Store**.
+You can download a ready-to-use extension package without installing Node.js or Git:
 
-For now, install the extension from source using the steps below. When a new Chrome Web Store listing is published for this project, this README can link to that new listing.
+1. Download the latest pre-packaged zip from GitHub Releases:
+   - Direct download: [**chrome-delete-facebook-messages-latest.zip**](https://github.com/andrewtryder/chrome-delete-facebook-messages/releases/latest/download/chrome-delete-facebook-messages-latest.zip)
+   - Or browse all releases on the [Releases page](https://github.com/andrewtryder/chrome-delete-facebook-messages/releases/latest).
+2. Unzip (extract) the downloaded `.zip` file on your computer.
+3. In Chrome, open `chrome://extensions`.
+4. Enable **Developer mode** (toggle in the top-right corner).
+5. Click **Load unpacked**.
+6. Select the extracted folder (the directory containing `manifest.json`).
 
 ### Install from source
 
