@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.0](https://github.com/andrewtryder/chrome-delete-facebook-messages/compare/chrome-delete-facebook-messages-v3.9.0...chrome-delete-facebook-messages-v3.10.0) (2026-09-17)
+
+
+### Features
+
+* complete legacy cleanup, new icons, and release zip distribution ([3bd9704](https://github.com/andrewtryder/chrome-delete-facebook-messages/commit/3bd97043d340d855309ac419cd20c3d923886305))
+
 ## [3.9.0](https://github.com/andrewtryder/chrome-delete-facebook-messages/compare/chrome-delete-facebook-messages-v3.8.0...chrome-delete-facebook-messages-v3.9.0) (2026-09-16)
 
 
