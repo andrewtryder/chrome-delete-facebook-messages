@@ -19,6 +19,9 @@ const LOCALHOST_MATCHES = [
 const EXPLICIT_RUNTIME_FILES = [
   { src: "background.js", dest: "background.js" },
   { src: "js/script.js", dest: "js/script.js" },
+  { src: "icons/16.png", dest: "icons/16.png" },
+  { src: "icons/32.png", dest: "icons/32.png" },
+  { src: "icons/48.png", dest: "icons/48.png" },
   { src: "icons/128.png", dest: "icons/128.png" },
   { src: "icons/256.png", dest: "icons/256.png" },
   { src: "src/browser_action/browser_action.html", dest: "src/browser_action/browser_action.html" },

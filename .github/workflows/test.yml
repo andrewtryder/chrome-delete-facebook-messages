@@ -25,10 +25,11 @@ jobs:
         run: npm ci
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
-      - name: Verify fixture freshness and manifest safety
+      - name: Verify fixture freshness, manifest safety, and legacy audit
         run: |
           npm run fixture:update
           npm run manifest:check
+          npm run audit:legacy
           git diff --exit-code
       - name: Run tests
         run: npm test

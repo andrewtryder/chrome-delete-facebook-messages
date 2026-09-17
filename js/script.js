@@ -1,8 +1,8 @@
-console.log("🚀 FBChats Cleaner - script.js injected successfully");
-console.log("Current URL:", window.location.href);
-
 if (typeof document !== "undefined" && document.documentElement) {
-  document.documentElement.setAttribute("data-fb-cleaner-injected", "true");
+  document.documentElement.setAttribute(
+    "data-delete-facebook-messages-injected",
+    "true",
+  );
 }
 
 (() => {
@@ -488,7 +488,7 @@ if (typeof document !== "undefined" && document.documentElement) {
 
   function isMessengerPage() {
     return (
-      document.documentElement.dataset.fbCleanerFixture === "true" ||
+      document.documentElement.dataset.deleteFacebookMessagesFixture === "true" ||
       /(^|\.)facebook\.com\/messages/i.test(
         location.hostname + location.pathname,
       ) || /(^|\.)messenger\.com$/i.test(location.hostname)
@@ -496,7 +496,9 @@ if (typeof document !== "undefined" && document.documentElement) {
   }
 
   function isFixturePage() {
-    return document.documentElement.dataset.fbCleanerFixture === "true";
+    return (
+      document.documentElement.dataset.deleteFacebookMessagesFixture === "true"
+    );
   }
 
   function announceDryRun(message) {
@@ -1771,12 +1773,12 @@ if (typeof document !== "undefined" && document.documentElement) {
     };
 
     console.table(snapshot.buttons);
-    console.log("FBChats Cleaner selector snapshot:", snapshot);
+    console.log("Delete Facebook Messages selector snapshot:", snapshot);
     return snapshot;
   }
 
   // Expose only a small debug surface in the isolated content-script world.
-  window.FBChatsCleanerDebug = {
+  window.DeleteFacebookMessagesDebug = {
     selectors: SELECTORS,
     snapshot: getDebugSnapshot,
     stop: stopAutomation,

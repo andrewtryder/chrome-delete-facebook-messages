@@ -17,6 +17,18 @@ function checkUrl(url) {
   );
 }
 
+function isExtensionUrl(url) {
+  return (
+    !url ||
+    url.startsWith("chrome-extension://") ||
+    url.startsWith("moz-extension://") ||
+    url.startsWith("chrome://") ||
+    url.startsWith("edge://") ||
+    url.startsWith("brave://") ||
+    url.startsWith("about:")
+  );
+}
+
 function getOperationRuntimeAction(operation) {
   switch (operation) {
     case "delete":
@@ -380,10 +392,36 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
         return;
       }
 
-      // If popup is opened in a standalone extension tab or iframe, check all tabs
+      // If active tab is an extension or internal page (e.g. Playwright test tab or standalone popup), check other tabs
+      if (!active || isExtensionUrl(active.url)) {
+        chrome.tabs.query({}, (allTabs) => {
+          const found = (allTabs || []).find((t) => t.url && checkUrl(t.url));
+          callback(found || null);
+        });
+        return;
+      }
+
+      // Active tab is a regular webpage and is not Messenger
+      callback(null);
+    });
+  }
+
+  function findAnyMessengerTab(callback) {
+    if (typeof chrome === "undefined" || !chrome.tabs) {
+      callback(null);
+      return;
+    }
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const active = tabs && tabs[0];
+      if (active && checkUrl(active.url)) {
+        callback(active);
+        return;
+      }
+
       chrome.tabs.query({}, (allTabs) => {
         const found = (allTabs || []).find((t) => t.url && checkUrl(t.url));
-        callback(found || active || null);
+        callback(found || null);
       });
     });
   }
@@ -398,8 +436,8 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
         updatePageStatus("ready");
         rehydrateAutomationState();
       } else {
-        state.activeTabId = tab ? tab.id : null;
-        state.activeTabUrl = tab ? tab.url : "";
+        state.activeTabId = null;
+        state.activeTabUrl = "";
         updatePageStatus("unavailable");
       }
     });
@@ -431,16 +469,28 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
   }
 
   function openMessengerPage() {
-    findMessengerTab((existing) => {
-      if (existing && existing.id) {
-        chrome.tabs.update(existing.id, { active: true });
+    findAnyMessengerTab((existing) => {
+      if (existing && existing.id && checkUrl(existing.url)) {
+        chrome.tabs.update(existing.id, { active: true }, () => {
+          if (chrome.runtime.lastError) {
+            chrome.tabs.create({ url: "https://www.facebook.com/messages/" });
+          }
+        });
         if (existing.windowId) {
           chrome.windows.update(existing.windowId, { focused: true });
         }
         setTimeout(checkActiveTab, 600);
       } else {
-        chrome.tabs.create({ url: "https://www.facebook.com/messages/" });
-        setTimeout(checkActiveTab, 1000);
+        chrome.tabs.create({ url: "https://www.facebook.com/messages/" }, (newTab) => {
+          if (chrome.runtime.lastError) {
+            showNotification("Failed to open Messenger tab.", "error");
+            return;
+          }
+          if (newTab && newTab.windowId) {
+            chrome.windows.update(newTab.windowId, { focused: true });
+          }
+          setTimeout(checkActiveTab, 1000);
+        });
       }
     });
   }
@@ -1105,6 +1155,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     checkUrl,
+    isExtensionUrl,
     getOperationRuntimeAction,
     getOperationName,
     getProcessedLabel,
