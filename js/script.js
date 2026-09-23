@@ -519,7 +519,7 @@ if (
   }
 
   function announceDryRun(message) {
-    console.warn(`[DRY RUN] ${message}`);
+    warnDiagnostic(`[DRY RUN] ${message}`);
     showStatus(`DRY RUN — ${message}`);
   }
 
@@ -595,16 +595,37 @@ if (
     }
 
     const preExistingRoots = new Set(visibleElements(SELECTORS.menuRoot));
+    const controls = clickable.getAttribute ? clickable.getAttribute("aria-controls") : null;
+    const initialControlled = controls ? document.getElementById(controls) : null;
+    const initialControlledVisible = initialControlled ? isVisible(initialControlled) : false;
+    const initialControlledRect = initialControlledVisible ? initialControlled.getBoundingClientRect() : null;
 
     realClick(clickable);
 
     const openedRoot = await waitFor(
       () => {
-        // 1. If trigger specifies aria-controls, verify that exact controlled element
-        const controls = clickable.getAttribute("aria-controls");
+        // 1. If trigger specifies aria-controls, verify that controlled element
         if (controls) {
           const controlled = document.getElementById(controls);
-          if (controlled && isVisible(controlled)) return controlled;
+          if (controlled && isVisible(controlled)) {
+            // If it was not visible before, it's a newly opened menu
+            if (!initialControlledVisible || !preExistingRoots.has(controlled)) {
+              return controlled;
+            }
+            // If it was already visible before the click, reject unless we can establish
+            // that it changed ownership/state (e.g. moved to align with target)
+            const targetRow = row || clickable;
+            const targetRect = targetRow.getBoundingClientRect();
+            const currRect = controlled.getBoundingClientRect();
+            const movedToTarget =
+              initialControlledRect &&
+              (Math.abs(currRect.top - initialControlledRect.top) > 5 ||
+                Math.abs(currRect.left - initialControlledRect.left) > 5) &&
+              Math.abs(currRect.top - targetRect.bottom) < 150;
+            if (movedToTarget) {
+              return controlled;
+            }
+          }
         }
 
         // 2. Check for a newly-opened menu root that was not open prior to click
@@ -625,7 +646,7 @@ if (
           const rowMenu = row.querySelector(
             '[role="menu"], [id="thread-list-menu-buttons"]',
           );
-          if (rowMenu && isVisible(rowMenu)) return rowMenu;
+          if (rowMenu && isVisible(rowMenu) && !preExistingRoots.has(rowMenu)) return rowMenu;
         }
 
         return null;
@@ -908,10 +929,7 @@ if (
 
     if (!firstThread) return false;
 
-    console.log(
-      "Opening Marketplace conversation from list:",
-      normalizedText(firstThread),
-    );
+    logDiagnostic("Opening Marketplace conversation from list");
     realClick(firstThread);
 
     return Boolean(
@@ -927,29 +945,61 @@ if (
     );
     if (!moreButton) return null;
 
+    const clickable = closestClickable(moreButton) || moreButton;
     logDiagnostic("Opening Marketplace header More options");
-    realClick(moreButton);
+
+    const preExistingRoots = new Set(visibleElements(SELECTORS.menuRoot));
+    const controls = clickable.getAttribute ? clickable.getAttribute("aria-controls") : null;
+    const initialControlled = controls ? document.getElementById(controls) : null;
+    const initialControlledVisible = initialControlled ? isVisible(initialControlled) : false;
+    const initialControlledRect = initialControlledVisible ? initialControlled.getBoundingClientRect() : null;
+
+    realClick(clickable);
 
     const opened = await waitFor(
       () => {
-        const roots = getOpenMenuRoots();
-        const usefulRoot = roots.find((root) =>
-          /delete|archive|report|block|conversation|chat/i.test(
-            normalizedText(root),
-          ),
-        );
-        if (usefulRoot) return usefulRoot;
+        // 1. If trigger specifies aria-controls, verify that controlled element
+        if (controls) {
+          const controlled = document.getElementById(controls);
+          if (controlled && isVisible(controlled)) {
+            if (!initialControlledVisible || !preExistingRoots.has(controlled)) {
+              return controlled;
+            }
+            const targetRect = clickable.getBoundingClientRect();
+            const currRect = controlled.getBoundingClientRect();
+            const movedToTarget =
+              initialControlledRect &&
+              (Math.abs(currRect.top - initialControlledRect.top) > 5 ||
+                Math.abs(currRect.left - initialControlledRect.left) > 5) &&
+              Math.abs(currRect.top - targetRect.bottom) < 150;
+            if (movedToTarget) {
+              return controlled;
+            }
+          }
+        }
 
-        const directItem = findVisibleByText(
-          '[role="button"], button, [role="menuitem"]',
-          /\b(delete|archive|report|block)\b/i,
-        );
-        if (directItem) {
-          return (
-            directItem.closest(
-              '[role="menu"], [role="dialog"], [aria-modal="true"]',
-            ) || directItem.parentElement
+        // 2. Check for a newly-opened menu root that was not open prior to click
+        const currentRoots = visibleElements(SELECTORS.menuRoot);
+        for (const root of currentRoots) {
+          if (!preExistingRoots.has(root) && isVisible(root)) {
+            const hasItems =
+              queryAll(
+                '[role="menuitem"], [role="menuitemradio"], button, [role="button"]',
+                root,
+              ).length > 0;
+            if (hasItems) return root;
+          }
+        }
+
+        // 3. Check for a menu contained within the clicked header button container
+        const container = clickable.closest('header, [role="banner"], [role="region"], div');
+        if (container) {
+          const containerMenu = container.querySelector(
+            '[role="menu"], [id="thread-list-menu-buttons"]',
           );
+          if (containerMenu && isVisible(containerMenu) && !preExistingRoots.has(containerMenu)) {
+            return containerMenu;
+          }
         }
 
         return null;
@@ -1539,7 +1589,7 @@ if (
     });
 
     if (candidate) {
-      console.log("Navigating back to regular chats/inbox:", candidate);
+      logDiagnostic("Navigating back to regular chats/inbox");
       realClick(candidate);
       await sleep(500);
       return true;
@@ -1579,12 +1629,12 @@ if (
       );
 
       if (!candidate) {
-        console.warn("Marketplace messages entry not found.");
+        warnDiagnostic("Marketplace messages entry not found.");
         send("noBuySell");
         return;
       }
 
-      console.log("Opening Marketplace messages:", normalizedText(candidate));
+      logDiagnostic("Opening Marketplace messages");
       realClick(candidate);
       await sleep(800);
       send("loadedCompleteBuySell");

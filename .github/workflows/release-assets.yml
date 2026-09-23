@@ -20,19 +20,20 @@ jobs:
         id: target-tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           INPUT_TAG: ${{ github.event.inputs.tag }}
         run: |
           TARGET_TAG="${INPUT_TAG}"
           if [ -z "$TARGET_TAG" ]; then
-            TARGET_TAG=$(gh release view --json tagName -q .tagName)
+            TARGET_TAG=$(gh release view --repo "${GH_REPO}" --json tagName -q .tagName)
           fi
           echo "tag=${TARGET_TAG}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ steps.target-tag.outputs.tag }}
 
-      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: 22
           cache: npm
@@ -59,7 +60,8 @@ jobs:
       - name: Publish zip assets to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
           TARGET_TAG: ${{ steps.target-tag.outputs.tag }}
         run: |
           echo "Uploading release zip assets to: ${TARGET_TAG}"
-          gh release upload "${TARGET_TAG}" dist/*.zip dist/SHA256SUMS.txt --clobber
+          gh release upload --repo "${GH_REPO}" "${TARGET_TAG}" dist/*.zip dist/SHA256SUMS.txt --clobber

@@ -58,8 +58,10 @@ function checkUrl(url, allowDev = undefined) {
     // Facebook: facebook.com or *.facebook.com with /messages or /latest/inbox
     if (hostname === "facebook.com" || hostname.endsWith(".facebook.com")) {
       return (
-        pathname.startsWith("/messages") ||
-        pathname.startsWith("/latest/inbox")
+        pathname === "/messages" ||
+        pathname.startsWith("/messages/") ||
+        pathname === "/latest/inbox" ||
+        pathname.startsWith("/latest/inbox/")
       );
     }
 

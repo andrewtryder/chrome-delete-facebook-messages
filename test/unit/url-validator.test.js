@@ -37,6 +37,8 @@ describe("Strict URL Validation Unit Tests", () => {
       assert.equal(checkUrl("https://www.facebook.com/friends", false), false);
       assert.equal(checkUrl("https://www.facebook.com/marketplace", false), false);
       assert.equal(checkUrl("https://www.facebook.com/settings", false), false);
+      assert.equal(checkUrl("https://www.facebook.com/messagesWhatever", false), false);
+      assert.equal(checkUrl("https://www.facebook.com/latest/inboxWhatever", false), false);
     });
 
     test("rejects insecure HTTP protocols for production domains", () => {
