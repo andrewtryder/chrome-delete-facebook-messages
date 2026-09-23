@@ -19,10 +19,8 @@ function packageZip() {
   const manifest = JSON.parse(fs.readFileSync(MANIFEST_PATH, "utf8"));
   const version = manifest.version;
 
-  if (!fs.existsSync(PROD_DIR)) {
-    console.log("dist/prod not found. Running build first...");
-    execSync("node scripts/build.js", { cwd: ROOT, stdio: "inherit" });
-  }
+  console.log("📦 Building fresh production extension before packaging...");
+  execSync("node scripts/build.js", { cwd: ROOT, stdio: "inherit" });
 
   const latestZipName = "chrome-delete-facebook-messages-latest.zip";
   const versionedZipName = `chrome-delete-facebook-messages-${version}.zip`;

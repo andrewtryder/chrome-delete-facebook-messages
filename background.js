@@ -1,5 +1,5 @@
 chrome.runtime.onInstalled.addListener((e) => {
-  if ("install" !== e.reason && "update" !== e.reason) return;
+  if ("install" !== e.reason) return;
   chrome.tabs.query({ url: "*://www.facebook.com/messages*" }, (e) => {
     e.length > 0
       ? (chrome.tabs.reload(e[0].id),

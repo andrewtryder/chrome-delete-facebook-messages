@@ -1,8 +1,6 @@
 name: release-assets
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
       tag:
@@ -18,28 +16,49 @@ jobs:
     name: publish-release-zip
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - name: Determine target release tag
+        id: target-tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TAG: ${{ github.event.inputs.tag }}
+        run: |
+          TARGET_TAG="${INPUT_TAG}"
+          if [ -z "$TARGET_TAG" ]; then
+            TARGET_TAG=$(gh release view --json tagName -q .tagName)
+          fi
+          echo "tag=${TARGET_TAG}" >> "$GITHUB_OUTPUT"
 
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.target-tag.outputs.tag }}
+
+      - uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: 22
           cache: npm
+
+      - name: Verify release tag matches manifest version
+        run: |
+          MANIFEST_VER=$(node -p "require('./manifest.json').version")
+          EXPECTED_TAG="chrome-delete-facebook-messages-v${MANIFEST_VER}"
+          TARGET_TAG="${{ steps.target-tag.outputs.tag }}"
+          if [ "${TARGET_TAG}" != "${EXPECTED_TAG}" ] && [ "${TARGET_TAG}" != "v${MANIFEST_VER}" ]; then
+            echo "❌ Target tag ${TARGET_TAG} does not match manifest.json version ${MANIFEST_VER}"
+            exit 1
+          fi
+          echo "✅ Target tag matches manifest.json version ${MANIFEST_VER}"
 
       - name: Install dependencies and build
         run: |
           npm ci
           npm run build
           npm run package
+          cd dist && sha256sum *.zip > SHA256SUMS.txt && cd ..
 
       - name: Publish zip assets to release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          INPUT_TAG: ${{ github.event.inputs.tag }}
-          RELEASE_TAG: ${{ github.event.release.tag_name }}
+          TARGET_TAG: ${{ steps.target-tag.outputs.tag }}
         run: |
-          TARGET_TAG="${INPUT_TAG:-${RELEASE_TAG}}"
-          if [ -z "$TARGET_TAG" ]; then
-            TARGET_TAG=$(gh release view --json tagName -q .tagName)
-          fi
           echo "Uploading release zip assets to: ${TARGET_TAG}"
-          gh release upload "${TARGET_TAG}" dist/*.zip --clobber
+          gh release upload "${TARGET_TAG}" dist/*.zip dist/SHA256SUMS.txt --clobber

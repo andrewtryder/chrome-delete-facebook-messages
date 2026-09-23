@@ -7,6 +7,8 @@ const { build } = require("../scripts/build");
 
 const pathToDevExtension = path.resolve(__dirname, "../dist/dev");
 const pathToProdExtension = path.resolve(__dirname, "../dist/prod");
+const FIXTURE_PORT = process.env.PORT || 4174;
+const FIXTURE_URL = `http://127.0.0.1:${FIXTURE_PORT}/`;
 
 test.describe("True Manifest V3 Extension End-to-End Suite", () => {
   let context;
@@ -52,7 +54,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("2. Content script injects into development fixture via MV3 manifest", async () => {
     const page = await context.newPage();
-    await page.goto("http://127.0.0.1:4173/");
+    await page.goto(FIXTURE_URL);
 
     await page.waitForFunction(
       () => document.documentElement.getAttribute("data-delete-facebook-messages-injected") === "true",
@@ -68,7 +70,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("3. Popup recognizes fixture and shows: Ready", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const popupPage = await context.newPage();
@@ -116,7 +118,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("6. Dry-run can be enabled from the real popup", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
 
     const popupPage = await context.newPage();
     await popupPage.goto(
@@ -142,7 +144,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("7. Dry-run + Delete regular inspects fixture and changes zero records", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const initialDeleted = await fixturePage.evaluate(
@@ -187,7 +189,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("8. Delete regular opens destructive confirmation; Cancel changes nothing", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const initialDeleted = await fixturePage.evaluate(
@@ -229,7 +231,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("9. Delete regular: confirming deletes exactly one when limit=1", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const popupPage = await context.newPage();
@@ -261,7 +263,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("10. Custom limit: setting limit=2 produces exactly 2 more actions", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const currentDeleted = await fixturePage.evaluate(
@@ -301,7 +303,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("11. Archive regular works through popup", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const initialArchived = await fixturePage.evaluate(
@@ -349,7 +351,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("12. Marketplace delete routes correctly through popup", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const popupPage = await context.newPage();
@@ -395,7 +397,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("13. Restore archived safely navigates and executes", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const popupPage = await context.newPage();
@@ -440,7 +442,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("14. Stop button halts in-flight automation cleanly", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const popupPage = await context.newPage();
@@ -581,8 +583,10 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
     const manifest = JSON.parse(fs.readFileSync(prodManifestPath, "utf8"));
     const matches = manifest.content_scripts[0].matches;
 
-    expect(matches).toContain("https://*.facebook.com/*");
+    expect(matches).toContain("https://*.facebook.com/messages*");
+    expect(matches).toContain("https://*.facebook.com/latest/inbox*");
     expect(matches).toContain("https://*.messenger.com/*");
+    expect(matches).not.toContain("https://*.facebook.com/*");
 
     const forbidden = matches.filter(
       (m) => m.includes("localhost") || m.includes("127.0.0.1"),
@@ -653,7 +657,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("22. Activity tab renders completed run summary and clears cleanly", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const popupPage = await context.newPage();
@@ -704,7 +708,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("23. Popup rehydrates live state from running content script via getAutomationState", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const popup1 = await context.newPage();
@@ -750,7 +754,7 @@ test.describe("True Manifest V3 Extension End-to-End Suite", () => {
 
   test("24. Destructive confirmation modal focus trap, Escape dismissal, and focus restoration", async () => {
     const fixturePage = await context.newPage();
-    await fixturePage.goto("http://127.0.0.1:4173/");
+    await fixturePage.goto(FIXTURE_URL);
     await fixturePage.waitForFunction(() => typeof window.MockMessenger !== "undefined");
 
     const popupPage = await context.newPage();

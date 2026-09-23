@@ -624,8 +624,10 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     const matches = manifest.content_scripts[0].matches;
 
-    expect(matches).toContain("https://*.facebook.com/*");
+    expect(matches).toContain("https://*.facebook.com/messages*");
+    expect(matches).toContain("https://*.facebook.com/latest/inbox*");
     expect(matches).toContain("https://*.messenger.com/*");
+    expect(matches).not.toContain("https://*.facebook.com/*");
 
     const localhostMatches = matches.filter(
       (m) => m.includes("localhost") || m.includes("127.0.0.1"),

@@ -14,23 +14,36 @@ jobs:
     name: release-please
     runs-on: ubuntu-latest
     steps:
-      - uses: googleapis/release-please-action@v5
+      - uses: googleapis/release-please-action@d1a8f221d7723166f48a584aebba00ef3f6febec # v4.1.4
         id: release
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           config-file: release-please-config.json
           manifest-file: .release-please-manifest.json
 
-      - name: Checkout repository for asset packaging
+      - name: Checkout release tag for asset packaging
         if: ${{ steps.release.outputs.releases_created == 'true' }}
-        uses: actions/checkout@v7
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ steps.release.outputs.tag_name }}
 
       - name: Setup Node.js
         if: ${{ steps.release.outputs.releases_created == 'true' }}
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: 22
           cache: npm
+
+      - name: Verify release tag matches manifest version
+        if: ${{ steps.release.outputs.releases_created == 'true' }}
+        run: |
+          MANIFEST_VER=$(node -p "require('./manifest.json').version")
+          EXPECTED_TAG="chrome-delete-facebook-messages-v${MANIFEST_VER}"
+          if [ "${{ steps.release.outputs.tag_name }}" != "${EXPECTED_TAG}" ] && [ "${{ steps.release.outputs.tag_name }}" != "v${MANIFEST_VER}" ]; then
+            echo "❌ Release tag ${{ steps.release.outputs.tag_name }} does not match manifest.json version ${MANIFEST_VER}"
+            exit 1
+          fi
+          echo "✅ Release tag matches manifest.json version ${MANIFEST_VER}"
 
       - name: Build and package extension zip
         if: ${{ steps.release.outputs.releases_created == 'true' }}
@@ -38,11 +51,12 @@ jobs:
           npm ci
           npm run build
           npm run package
+          cd dist && sha256sum *.zip > SHA256SUMS.txt && cd ..
 
-      - name: Upload release zip assets
+      - name: Upload release zip assets and checksums
         if: ${{ steps.release.outputs.releases_created == 'true' }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           TAG_NAME: ${{ steps.release.outputs.tag_name }}
         run: |
-          gh release upload "${TAG_NAME}" dist/*.zip --clobber
+          gh release upload "${TAG_NAME}" dist/*.zip dist/SHA256SUMS.txt --clobber
