@@ -1,4 +1,8 @@
-if (typeof document !== "undefined" && document.documentElement) {
+if (
+  typeof document !== "undefined" &&
+  document.documentElement &&
+  document.documentElement.dataset.deleteFacebookMessagesFixture === "true"
+) {
   document.documentElement.setAttribute(
     "data-delete-facebook-messages-injected",
     "true",
@@ -169,6 +173,28 @@ if (typeof document !== "undefined" && document.documentElement) {
     }
   }
 
+  function isFixturePage() {
+    return (
+      typeof document !== "undefined" &&
+      Boolean(
+        document.documentElement &&
+          document.documentElement.dataset.deleteFacebookMessagesFixture === "true",
+      )
+    );
+  }
+
+  function logDiagnostic(...args) {
+    if (isFixturePage()) {
+      console.log(...args);
+    }
+  }
+
+  function warnDiagnostic(...args) {
+    if (isFixturePage()) {
+      console.warn(...args);
+    }
+  }
+
   async function actionDelay() {
     // The fixture is an explicitly marked local test target; no real-site
     // timing assumptions are needed there.
@@ -179,9 +205,6 @@ if (typeof document !== "undefined" && document.documentElement) {
     const baseMs = Math.max(250, actionDelaySeconds * 1000);
     const jitterMs = Math.floor(350 + Math.random() * 900);
     const totalMs = baseMs + jitterMs;
-    console.log(
-      `⏳ Waiting ${Math.round(totalMs / 1000)} seconds before next action`,
-    );
     await sleep(totalMs);
   }
 
@@ -495,14 +518,8 @@ if (typeof document !== "undefined" && document.documentElement) {
     );
   }
 
-  function isFixturePage() {
-    return (
-      document.documentElement.dataset.deleteFacebookMessagesFixture === "true"
-    );
-  }
-
   function announceDryRun(message) {
-    console.warn(`[DRY RUN] ${message}`);
+    warnDiagnostic(`[DRY RUN] ${message}`);
     showStatus(`DRY RUN — ${message}`);
   }
 
@@ -565,7 +582,7 @@ if (typeof document !== "undefined" && document.documentElement) {
 
   async function openThreadMenu(menuButton) {
     const clickable = closestClickable(menuButton);
-    if (!clickable) return false;
+    if (!clickable) return null;
 
     const row = clickable.closest(
       '[role="row"], [role="listitem"], [aria-label], a[href]',
@@ -577,19 +594,59 @@ if (typeof document !== "undefined" && document.documentElement) {
       await sleep(150);
     }
 
+    const preExistingRoots = new Set(visibleElements(SELECTORS.menuRoot));
+    const controls = clickable.getAttribute ? clickable.getAttribute("aria-controls") : null;
+    const initialControlled = controls ? document.getElementById(controls) : null;
+    const initialControlledVisible = initialControlled ? isVisible(initialControlled) : false;
+    const initialControlledRect = initialControlledVisible ? initialControlled.getBoundingClientRect() : null;
+
     realClick(clickable);
 
-    const opened = await waitFor(
+    const openedRoot = await waitFor(
       () => {
-        const menuItem = findVisible(
-          '[role="menuitem"], [role="menuitemradio"]',
-        );
-        if (menuItem) return menuItem;
-
-        const controls = clickable.getAttribute("aria-controls");
+        // 1. If trigger specifies aria-controls, verify that controlled element
         if (controls) {
           const controlled = document.getElementById(controls);
-          if (controlled && isVisible(controlled)) return controlled;
+          if (controlled && isVisible(controlled)) {
+            // If it was not visible before, it's a newly opened menu
+            if (!initialControlledVisible || !preExistingRoots.has(controlled)) {
+              return controlled;
+            }
+            // If it was already visible before the click, reject unless we can establish
+            // that it changed ownership/state (e.g. moved to align with target)
+            const targetRow = row || clickable;
+            const targetRect = targetRow.getBoundingClientRect();
+            const currRect = controlled.getBoundingClientRect();
+            const movedToTarget =
+              initialControlledRect &&
+              (Math.abs(currRect.top - initialControlledRect.top) > 5 ||
+                Math.abs(currRect.left - initialControlledRect.left) > 5) &&
+              Math.abs(currRect.top - targetRect.bottom) < 150;
+            if (movedToTarget) {
+              return controlled;
+            }
+          }
+        }
+
+        // 2. Check for a newly-opened menu root that was not open prior to click
+        const currentRoots = visibleElements(SELECTORS.menuRoot);
+        for (const root of currentRoots) {
+          if (!preExistingRoots.has(root) && isVisible(root)) {
+            const hasItems =
+              queryAll(
+                '[role="menuitem"], [role="menuitemradio"], button, [role="button"]',
+                root,
+              ).length > 0;
+            if (hasItems) return root;
+          }
+        }
+
+        // 3. Check for a menu contained within or adjacent to the clicked row
+        if (row) {
+          const rowMenu = row.querySelector(
+            '[role="menu"], [id="thread-list-menu-buttons"]',
+          );
+          if (rowMenu && isVisible(rowMenu) && !preExistingRoots.has(rowMenu)) return rowMenu;
         }
 
         return null;
@@ -598,7 +655,7 @@ if (typeof document !== "undefined" && document.documentElement) {
       100,
     );
 
-    return Boolean(opened);
+    return openedRoot || null;
   }
 
   function getOpenMenuRoots() {
@@ -614,37 +671,25 @@ if (typeof document !== "undefined" && document.documentElement) {
     });
   }
 
-  function findActionMenuItem(actionConfig) {
-    const roots = getOpenMenuRoots();
+  function findActionMenuItem(actionConfig, targetRoot = null) {
+    // Fail closed: Require a valid target root strictly owned by the triggered menu
+    if (!targetRoot) return null;
 
-    for (const root of roots) {
-      const exact = findVisibleByText(
-        SELECTORS.menuItem,
-        actionConfig.menuRegex,
-        root,
-      );
-      if (exact) return exact;
-    }
-
-    for (const root of roots) {
-      const loose = findVisibleByText(
-        SELECTORS.menuItem,
-        actionConfig.looseMenuRegex,
-        root,
-      );
-      if (loose) return loose;
-    }
-
-    const exactGlobal = findVisibleByText(
-      '[role="menuitem"], [role="menuitemradio"]',
+    const exact = findVisibleByText(
+      SELECTORS.menuItem,
       actionConfig.menuRegex,
+      targetRoot,
     );
-    if (exactGlobal) return exactGlobal;
+    if (exact) return exact;
 
-    return findVisibleByText(
-      '[role="menuitem"], [role="menuitemradio"]',
+    const loose = findVisibleByText(
+      SELECTORS.menuItem,
       actionConfig.looseMenuRegex,
+      targetRoot,
     );
+    if (loose) return loose;
+
+    return null;
   }
 
   function ancestorHasText(el, regex, maxDepth = 8) {
@@ -707,22 +752,20 @@ if (typeof document !== "undefined" && document.documentElement) {
   function findConfirmButton(actionConfig) {
     if (!actionConfig.confirmRegex) return null;
 
-    const contextRegex =
-      /delete chat|delete conversation|cannot be undone|delete your copy/i;
+    const roots = getConfirmationRoots();
+    if (roots.length === 0) return null;
+
+    // Target the most recently mounted active confirmation dialog
+    const activeRoot = roots[roots.length - 1];
 
     const candidates = visibleElements(
-      [
-        '[role="dialog"][aria-label="Delete chat"] [role="button"]',
-        '[role="dialog"][aria-label="Delete conversation"] [role="button"]',
-        '[aria-modal="true"] [role="button"]',
-        '[role="button"][aria-label="Delete chat"]',
-        '[role="button"][aria-label="Delete conversation"]',
-        "button",
-      ].join(","),
+      '[role="button"], button, [role="link"], a[role="button"]',
+      activeRoot,
     )
-      .filter((el) => !textMatches(el, /^cancel$/i))
-      .filter((el) => textMatches(el, actionConfig.confirmRegex))
-      .filter((el) => ancestorHasText(el, contextRegex, 10));
+      .filter(
+        (el) => !textMatches(el, /^(cancel|back|close|learn more|not now)$/i),
+      )
+      .filter((el) => textMatches(el, actionConfig.confirmRegex));
 
     const topmost = candidates
       .map((el) => ({ original: el, clickable: getTopmostClickable(el) }))
@@ -730,16 +773,6 @@ if (typeof document !== "undefined" && document.documentElement) {
       .find((item) => item.clickable);
 
     if (topmost) return topmost.clickable;
-
-    const roots = getConfirmationRoots();
-
-    for (const root of roots) {
-      const exact = visibleElements(SELECTORS.confirmButtonCandidate, root)
-        .filter((el) => !textMatches(el, /^cancel$/i))
-        .find((el) => textMatches(el, actionConfig.confirmRegex));
-
-      if (exact) return getTopmostClickable(exact) || exact;
-    }
 
     return candidates[candidates.length - 1] || null;
   }
@@ -896,10 +929,7 @@ if (typeof document !== "undefined" && document.documentElement) {
 
     if (!firstThread) return false;
 
-    console.log(
-      "Opening Marketplace conversation from list:",
-      normalizedText(firstThread),
-    );
+    logDiagnostic("Opening Marketplace conversation from list");
     realClick(firstThread);
 
     return Boolean(
@@ -915,34 +945,70 @@ if (typeof document !== "undefined" && document.documentElement) {
     );
     if (!moreButton) return null;
 
-    console.log("Opening Marketplace header More options:", {
-      text: normalizedText(moreButton),
-      ariaLabel: moreButton.getAttribute("aria-label"),
-      rect: rectOf(moreButton),
-    });
+    const clickable = closestClickable(moreButton) || moreButton;
+    logDiagnostic("Opening Marketplace header More options");
 
-    realClick(moreButton);
+    const preExistingRoots = new Set(visibleElements(SELECTORS.menuRoot));
+    const controls = clickable.getAttribute ? clickable.getAttribute("aria-controls") : null;
+    const initialControlled = controls ? document.getElementById(controls) : null;
+    const initialControlledVisible = initialControlled ? isVisible(initialControlled) : false;
+    const initialControlledRect = initialControlledVisible ? initialControlled.getBoundingClientRect() : null;
+
+    realClick(clickable);
 
     const opened = await waitFor(
       () => {
-        const roots = getOpenMenuRoots();
-        const usefulRoot = roots.find((root) =>
-          /delete|archive|report|block|conversation|chat/i.test(
-            normalizedText(root),
-          ),
-        );
-        if (usefulRoot) return usefulRoot;
+        // 1. If trigger specifies aria-controls, verify that controlled element
+        if (controls) {
+          const controlled = document.getElementById(controls);
+          if (controlled && isVisible(controlled)) {
+            if (!initialControlledVisible || !preExistingRoots.has(controlled)) {
+              return controlled;
+            }
+            const targetRect = clickable.getBoundingClientRect();
+            const currRect = controlled.getBoundingClientRect();
+            const movedToTarget =
+              initialControlledRect &&
+              (Math.abs(currRect.top - initialControlledRect.top) > 5 ||
+                Math.abs(currRect.left - initialControlledRect.left) > 5) &&
+              Math.abs(currRect.top - targetRect.bottom) < 150;
+            if (movedToTarget) {
+              return controlled;
+            }
+          }
+        }
 
-        return findVisibleByText(
-          '[role="button"], button, [role="menuitem"]',
-          /\b(delete|archive|report|block)\b/i,
-        );
+        // 2. Check for a newly-opened menu root that was not open prior to click
+        const currentRoots = visibleElements(SELECTORS.menuRoot);
+        for (const root of currentRoots) {
+          if (!preExistingRoots.has(root) && isVisible(root)) {
+            const hasItems =
+              queryAll(
+                '[role="menuitem"], [role="menuitemradio"], button, [role="button"]',
+                root,
+              ).length > 0;
+            if (hasItems) return root;
+          }
+        }
+
+        // 3. Check for a menu contained within the clicked header button container
+        const container = clickable.closest('header, [role="banner"], [role="region"], div');
+        if (container) {
+          const containerMenu = container.querySelector(
+            '[role="menu"], [id="thread-list-menu-buttons"]',
+          );
+          if (containerMenu && isVisible(containerMenu) && !preExistingRoots.has(containerMenu)) {
+            return containerMenu;
+          }
+        }
+
+        return null;
       },
       4000,
       100,
     );
 
-    return opened;
+    return opened || null;
   }
 
   async function performCurrentMarketplaceConversationDelete(actionConfig, skipLabels) {
@@ -957,7 +1023,7 @@ if (typeof document !== "undefined" && document.documentElement) {
       )[0] || "current Marketplace conversation";
 
     if (skipLabels && skipLabels.has(title)) {
-      console.log("Marketplace conversation already processed:", title);
+      logDiagnostic("Marketplace conversation already processed");
       return { status: "empty" };
     }
     showStatus(
@@ -966,7 +1032,7 @@ if (typeof document !== "undefined" && document.documentElement) {
 
     const menuOpened = await openMarketplaceHeaderOptions();
     if (!menuOpened) {
-      console.warn("Marketplace header More options could not be opened.");
+      warnDiagnostic("Marketplace header More options could not be opened.");
       return {
         status: "skipped",
         reason: "marketplace_header_menu_not_opened",
@@ -975,12 +1041,12 @@ if (typeof document !== "undefined" && document.documentElement) {
     }
 
     const actionItem = await waitFor(
-      () => findActionMenuItem(actionConfig),
+      () => findActionMenuItem(actionConfig, menuOpened),
       4000,
       100,
     );
     if (!actionItem) {
-      console.warn(
+      warnDiagnostic(
         `${actionConfig.label} item not found in Marketplace header options.`,
       );
       pressEscape();
@@ -1012,9 +1078,8 @@ if (typeof document !== "undefined" && document.documentElement) {
       return dryRunResult(title, "dry_run_action_not_selected", actionLabel);
     }
 
-    console.log(
-      `Clicking Marketplace ${actionConfig.label} item:`,
-      normalizedText(actionItem),
+    logDiagnostic(
+      `Clicking Marketplace ${actionConfig.label} item`,
     );
     showStatus(
       `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Clicking ${normalizedText(actionItem) || actionConfig.label}`,
@@ -1029,7 +1094,7 @@ if (typeof document !== "undefined" && document.documentElement) {
       );
 
       if (!confirmButton) {
-        console.warn("Marketplace confirm button not found.");
+        warnDiagnostic("Marketplace confirm button not found.");
         pressEscape();
         await sleep(300);
         return {
@@ -1039,12 +1104,9 @@ if (typeof document !== "undefined" && document.documentElement) {
         };
       }
 
-      console.log(
-        "Confirming Marketplace delete:",
-        normalizedText(confirmButton),
-      );
+      logDiagnostic("Confirming Marketplace delete");
       showStatus(
-        `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Confirming ${normalizedText(confirmButton)}`,
+        `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Confirming action`,
       );
       realClick(confirmButton);
 
@@ -1056,7 +1118,7 @@ if (typeof document !== "undefined" && document.documentElement) {
       if (!closed) {
         const retryButton = findConfirmButton(actionConfig);
         if (retryButton) {
-          console.warn(
+          warnDiagnostic(
             "Marketplace confirmation still open; retrying topmost confirm button.",
           );
           realClick(retryButton);
@@ -1070,7 +1132,7 @@ if (typeof document !== "undefined" && document.documentElement) {
         150,
       );
       if (!finalClosed) {
-        console.warn("Marketplace confirmation did not close after retry.");
+        warnDiagnostic("Marketplace confirmation did not close after retry.");
         return {
           status: "skipped",
           reason: "marketplace_confirm_not_closed",
@@ -1112,14 +1174,14 @@ if (typeof document !== "undefined" && document.documentElement) {
     }
 
     const threadLabel = target.label || "Unknown thread";
-    console.log(`Opening thread menu: ${threadLabel}`);
+    logDiagnostic("Opening thread menu");
     showStatus(
       `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Opening ${threadLabel.replace(/^More options for\s*/i, "")}`,
     );
 
     const menuOpened = await openThreadMenu(target.el);
     if (!menuOpened) {
-      console.warn("Could not open menu for:", threadLabel);
+      warnDiagnostic("Could not open menu for thread");
       skipIdentities.add(target.identity);
       pressEscape();
       await sleep(300);
@@ -1127,14 +1189,13 @@ if (typeof document !== "undefined" && document.documentElement) {
     }
 
     const actionItem = await waitFor(
-      () => findActionMenuItem(actionConfig),
+      () => findActionMenuItem(actionConfig, menuOpened),
       4000,
       100,
     );
     if (!actionItem) {
-      console.warn(
-        `${actionConfig.label} menu item not found for:`,
-        threadLabel,
+      warnDiagnostic(
+        `${actionConfig.label} menu item not found`,
       );
       skipIdentities.add(target.identity);
       pressEscape();
@@ -1164,9 +1225,8 @@ if (typeof document !== "undefined" && document.documentElement) {
       return dryRunResult(threadLabel, "dry_run_action_not_selected", actionLabel);
     }
 
-    console.log(
-      `Clicking ${actionConfig.label} item:`,
-      normalizedText(actionItem),
+    logDiagnostic(
+      `Clicking ${actionConfig.label} item`,
     );
     realClick(actionItem);
 
@@ -1182,9 +1242,8 @@ if (typeof document !== "undefined" && document.documentElement) {
       );
 
       if (!confirmButton) {
-        console.warn(
-          `Confirm button not found for ${actionConfig.label}:`,
-          threadLabel,
+        warnDiagnostic(
+          `Confirm button not found for ${actionConfig.label}`,
         );
         skipIdentities.add(target.identity);
         pressEscape();
@@ -1193,11 +1252,10 @@ if (typeof document !== "undefined" && document.documentElement) {
       }
 
       showStatus(
-        `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Confirming ${normalizedText(confirmButton)}`,
+        `${actionConfig.popupLabel}: ${formatNumber(processedCount)} | Confirming action`,
       );
-      console.log(
-        `Confirming ${actionConfig.label}:`,
-        normalizedText(confirmButton),
+      logDiagnostic(
+        `Confirming ${actionConfig.label}`,
       );
       realClick(confirmButton);
 
@@ -1208,7 +1266,7 @@ if (typeof document !== "undefined" && document.documentElement) {
       );
 
       if (!closed) {
-        console.warn(
+        warnDiagnostic(
           "Confirmation dialog still appears open; retrying confirm click once.",
         );
         const retryButton = findConfirmButton(actionConfig);
@@ -1227,11 +1285,10 @@ if (typeof document !== "undefined" && document.documentElement) {
         150,
       );
       if (!finalClosed) {
-        console.warn(
-          `Confirmation did not close for ${actionConfig.label}:`,
-          threadLabel,
+        warnDiagnostic(
+          `Confirmation did not close for ${actionConfig.label}`,
         );
-        skipLabels.add(threadLabel);
+        skipIdentities.add(target.identity);
         return { status: "skipped", reason: "confirm_not_closed", threadLabel };
       }
     }
@@ -1532,7 +1589,7 @@ if (typeof document !== "undefined" && document.documentElement) {
     });
 
     if (candidate) {
-      console.log("Navigating back to regular chats/inbox:", candidate);
+      logDiagnostic("Navigating back to regular chats/inbox");
       realClick(candidate);
       await sleep(500);
       return true;
@@ -1572,12 +1629,12 @@ if (typeof document !== "undefined" && document.documentElement) {
       );
 
       if (!candidate) {
-        console.warn("Marketplace messages entry not found.");
+        warnDiagnostic("Marketplace messages entry not found.");
         send("noBuySell");
         return;
       }
 
-      console.log("Opening Marketplace messages:", normalizedText(candidate));
+      logDiagnostic("Opening Marketplace messages");
       realClick(candidate);
       await sleep(800);
       send("loadedCompleteBuySell");
@@ -1592,7 +1649,7 @@ if (typeof document !== "undefined" && document.documentElement) {
 
   async function openArchivedMessages() {
     if (!isMessengerPage()) {
-      send("noArchivedMsgs", { message: "Open Facebook Messages first." });
+      send("archiveError", { message: "Open Facebook Messages first." });
       return;
     }
 
@@ -1603,12 +1660,12 @@ if (typeof document !== "undefined" && document.documentElement) {
         100,
       );
       if (!settings) {
-        console.warn("Settings, help and more button not found.");
-        send("noArchivedMsgs", { message: "Settings menu not found." });
+        warnDiagnostic("Settings, help and more button not found.");
+        send("archiveError", { message: "Settings menu not found." });
         return;
       }
 
-      console.log("Opening settings menu");
+      logDiagnostic("Opening settings menu");
       realClick(settings);
 
       const archivedItem = await waitFor(
@@ -1638,21 +1695,23 @@ if (typeof document !== "undefined" && document.documentElement) {
       );
 
       if (!archivedItem) {
-        console.warn("Archived chats menu item not found.");
-        send("noArchivedMsgs", {
+        warnDiagnostic("Archived chats menu item not found.");
+        send("archiveError", {
           message: "Archived chats menu item not found.",
         });
         pressEscape();
         return;
       }
 
-      console.log("Opening Archived chats:", normalizedText(archivedItem));
+      logDiagnostic("Opening Archived chats");
       realClick(archivedItem);
       await sleep(800);
       send("loadedCompleteArchived");
     } catch (err) {
-      console.error("Could not open Archived chats:", err);
-      send("noArchivedMsgs", {
+      if (isFixturePage()) {
+        console.error("Could not open Archived chats:", err);
+      }
+      send("archiveError", {
         message: err && err.message ? err.message : String(err),
       });
     }
@@ -1772,25 +1831,29 @@ if (typeof document !== "undefined" && document.documentElement) {
       })),
     };
 
-    console.table(snapshot.buttons);
-    console.log("Delete Facebook Messages selector snapshot:", snapshot);
+    if (isFixturePage()) {
+      console.table(snapshot.buttons);
+      console.log("Delete Facebook Messages selector snapshot:", snapshot);
+    }
     return snapshot;
   }
 
-  // Expose only a small debug surface in the isolated content-script world.
-  window.DeleteFacebookMessagesDebug = {
-    selectors: SELECTORS,
-    snapshot: getDebugSnapshot,
-    stop: stopAutomation,
-    isFixturePage,
-    isBusy: () => busy,
-    isMarketplaceFolder,
-    isMarketplaceDetailView,
-    findMarketplaceHeaderMoreOptions,
-    isArchivedFolder,
-    openInboxMessages,
-    openMarketplaceMessages,
-    getInspectedCount: () => dryRunInspectedCount,
-    getProcessedCount: () => processedCount,
-  };
+  // Expose debug surface only on local test fixture pages.
+  if (isFixturePage()) {
+    window.DeleteFacebookMessagesDebug = {
+      selectors: SELECTORS,
+      snapshot: getDebugSnapshot,
+      stop: stopAutomation,
+      isFixturePage,
+      isBusy: () => busy,
+      isMarketplaceFolder,
+      isMarketplaceDetailView,
+      findMarketplaceHeaderMoreOptions,
+      isArchivedFolder,
+      openInboxMessages,
+      openMarketplaceMessages,
+      getInspectedCount: () => dryRunInspectedCount,
+      getProcessedCount: () => processedCount,
+    };
+  }
 })();

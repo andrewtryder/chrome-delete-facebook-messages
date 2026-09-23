@@ -13,6 +13,8 @@ const PROD_DIR = path.join(DIST_DIR, "prod");
 const LOCALHOST_MATCHES = [
   "http://127.0.0.1:4173/*",
   "http://localhost:4173/*",
+  "http://127.0.0.1:4174/*",
+  "http://localhost:4174/*",
 ];
 
 // Explicit required runtime files for extension package

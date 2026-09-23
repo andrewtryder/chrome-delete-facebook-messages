@@ -624,8 +624,10 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     const matches = manifest.content_scripts[0].matches;
 
-    expect(matches).toContain("https://*.facebook.com/*");
+    expect(matches).toContain("https://*.facebook.com/messages*");
+    expect(matches).toContain("https://*.facebook.com/latest/inbox*");
     expect(matches).toContain("https://*.messenger.com/*");
+    expect(matches).not.toContain("https://*.facebook.com/*");
 
     const localhostMatches = matches.filter(
       (m) => m.includes("localhost") || m.includes("127.0.0.1"),
@@ -715,5 +717,98 @@ test.describe("Phase 6 — Automated Messenger Fixture Test Suite", () => {
 
     // Both distinct Person 002 threads should be inspected
     expect(person002Events.length).toBe(2);
+  });
+
+  test("31. Regular thread menu rejects pre-existing controlled menu when target menu click fails", async ({ page }) => {
+    // Manually open Thread A's menu (first thread in list)
+    const firstMoreBtn = page.locator('div[role="button"][aria-label^="More options for"]').first();
+    await firstMoreBtn.click();
+    await expect(page.locator("#thread-list-menu-buttons")).toBeVisible();
+
+    // Set failOpen = true so that clicking Thread B's menu button will fail to open/switch menus.
+    // Remove Thread A's row from the thread list DOM so Thread B is the top candidate.
+    // Thread A's menu popup remains visible on document.body.
+    await page.evaluate(() => {
+      window.MockMessenger.flags.failOpen = true;
+      document.querySelector("#thread-list article")?.remove();
+    });
+
+    // Verify Thread A's menu is still open
+    await expect(page.locator("#thread-list-menu-buttons")).toBeVisible();
+
+    // Run extension deleteMsgs with maxActions: 1 (targets Thread B, whose menu click fails)
+    await dispatchExtensionMessage(page, "deleteMsgs", { maxActions: 1 });
+
+    // Expect warning about menu not opening for the target thread
+    await page.waitForFunction(() =>
+      (window._sentMessages || []).some(
+        (m) => m.action === "automationWarning" && m.reason === "menu_not_opened",
+      ),
+    );
+
+    // Verify zero action was selected from Thread A's existing menu
+    const deleted = await page.evaluate(() => window.MockMessenger.state.deletedCount);
+    expect(deleted).toBe(0);
+
+    // Clean up
+    await page.evaluate(() => {
+      window.MockMessenger.flags.failOpen = false;
+      document.querySelectorAll(".menu, .overlay").forEach((el) => el.remove());
+    });
+  });
+
+  test("32. Marketplace More Options rejects pre-existing unrelated menu when More Options click fails", async ({ page }) => {
+    // Switch to Marketplace view and clear thread list so detail header options is exercised
+    await page.evaluate(() => {
+      window.MockMessenger.state.view = "marketplace";
+      window.MockMessenger.render();
+      document.querySelector("#thread-list").replaceChildren();
+    });
+
+    // Create an unrelated pre-existing menu containing "Delete chat" in the DOM
+    await page.evaluate(() => {
+      const menu = document.createElement("div");
+      menu.id = "unrelated-menu";
+      menu.className = "menu";
+      menu.setAttribute("role", "menu");
+      const item = document.createElement("button");
+      item.setAttribute("role", "menuitem");
+      item.textContent = "Delete chat";
+      item.addEventListener("click", () => {
+        window.__unrelatedMenuClicked = true;
+      });
+      menu.appendChild(item);
+      document.body.appendChild(menu);
+
+      // Intercept and swallow click on Marketplace More Options button so it fails to open a menu
+      const moreBtn = document.querySelector("#marketplace-header-more");
+      if (moreBtn) {
+        moreBtn.addEventListener("click", (e) => e.stopImmediatePropagation(), true);
+      }
+    });
+
+    // Run extension deleteBuySell
+    await dispatchExtensionMessage(page, "deleteBuySell", { maxActions: 1 });
+
+    // Expect warning about Marketplace menu not opening or completion
+    await page.waitForFunction(() =>
+      (window._sentMessages || []).some(
+        (m) =>
+          (m.action === "automationWarning" && m.reason === "marketplace_header_menu_not_opened") ||
+          m.action === "noBuySellMsgs",
+      ),
+    );
+
+    // Verify the unrelated pre-existing menu was never clicked
+    const unrelatedClicked = await page.evaluate(() => Boolean(window.__unrelatedMenuClicked));
+    expect(unrelatedClicked).toBe(false);
+
+    const deleted = await page.evaluate(() => window.MockMessenger.state.deletedCount);
+    expect(deleted).toBe(0);
+
+    // Clean up
+    await page.evaluate(() => {
+      document.querySelector("#unrelated-menu")?.remove();
+    });
   });
 });

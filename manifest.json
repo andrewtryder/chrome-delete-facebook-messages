@@ -24,7 +24,8 @@
   "content_scripts": [
     {
       "matches": [
-        "https://*.facebook.com/*",
+        "https://*.facebook.com/messages*",
+        "https://*.facebook.com/latest/inbox*",
         "https://*.messenger.com/*"
       ],
       "js": [

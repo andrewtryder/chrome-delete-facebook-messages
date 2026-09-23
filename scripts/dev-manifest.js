@@ -9,10 +9,13 @@ const MANIFEST_PATH = path.resolve(__dirname, "../manifest.json");
 const LOCALHOST_MATCHES = [
   "http://127.0.0.1:4173/*",
   "http://localhost:4173/*",
+  "http://127.0.0.1:4174/*",
+  "http://localhost:4174/*",
 ];
 
 const PROD_MATCHES = [
-  "https://*.facebook.com/*",
+  "https://*.facebook.com/messages*",
+  "https://*.facebook.com/latest/inbox*",
   "https://*.messenger.com/*",
 ];
 

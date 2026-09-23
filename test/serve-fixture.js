@@ -46,7 +46,7 @@ const server = http.createServer((req, res) => {
   fs.createReadStream(targetFile).pipe(res);
 });
 
-const PORT = process.env.PORT || 4173;
+const PORT = process.env.PORT || 4174;
 const HOST = "127.0.0.1";
 
 server.listen(PORT, HOST, () => {

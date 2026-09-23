@@ -8,13 +8,67 @@
 // Pure Helper Functions (testable via node:test)
 // =============================================================================
 
-function checkUrl(url) {
-  return (
-    /facebook\.com\/(messages|latest\/inbox)/i.test(url || "") ||
-    /messenger\.com/i.test(url || "") ||
-    /(?:127\.0\.0\.1|localhost):4173/i.test(url || "") ||
-    /(?:127\.0\.0\.1|localhost):\d+\/test\/mock-messenger/i.test(url || "")
-  );
+function isDevEnvironment() {
+  try {
+    if (typeof chrome !== "undefined" && chrome.runtime?.getManifest) {
+      const manifest = chrome.runtime.getManifest();
+      const matches = manifest.content_scripts?.[0]?.matches || [];
+      return matches.some((m) => m.includes("localhost") || m.includes("127.0.0.1"));
+    }
+  } catch {}
+  return false;
+}
+
+function checkUrl(url, allowDev = undefined) {
+  if (!url || typeof url !== "string") return false;
+  try {
+    const parsed = new URL(url);
+    const protocol = parsed.protocol.toLowerCase();
+    const hostname = parsed.hostname.toLowerCase();
+    const pathname = parsed.pathname;
+
+    const permitDev =
+      typeof allowDev === "boolean" ? allowDev : isDevEnvironment();
+
+    // Check development fixture URLs if permitted
+    if (permitDev) {
+      if (
+        (protocol === "http:" || protocol === "https:") &&
+        (hostname === "127.0.0.1" || hostname === "localhost")
+      ) {
+        if (
+          parsed.port === "4173" ||
+          parsed.port === "4174" ||
+          pathname.includes("/test/mock-messenger") ||
+          pathname === "/"
+        ) {
+          return true;
+        }
+      }
+    }
+
+    // In production, strictly require https:
+    if (protocol !== "https:") return false;
+
+    // Messenger standalone: messenger.com or *.messenger.com
+    if (hostname === "messenger.com" || hostname.endsWith(".messenger.com")) {
+      return true;
+    }
+
+    // Facebook: facebook.com or *.facebook.com with /messages or /latest/inbox
+    if (hostname === "facebook.com" || hostname.endsWith(".facebook.com")) {
+      return (
+        pathname === "/messages" ||
+        pathname.startsWith("/messages/") ||
+        pathname === "/latest/inbox" ||
+        pathname.startsWith("/latest/inbox/")
+      );
+    }
+
+    return false;
+  } catch {
+    return false;
+  }
 }
 
 function isExtensionUrl(url) {
@@ -1155,6 +1209,7 @@ if (typeof window !== "undefined" && typeof document !== "undefined") {
 if (typeof module !== "undefined" && module.exports) {
   module.exports = {
     checkUrl,
+    isDevEnvironment,
     isExtensionUrl,
     getOperationRuntimeAction,
     getOperationName,
