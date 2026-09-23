@@ -1,7 +1,7 @@
 {
   "name": "Delete Facebook Messages",
   "short_name": "Msg Cleaner",
-  "version": "3.10.0",
+  "version": "3.10.1",
   "manifest_version": 3,
   "description": "Open-source browser extension to preview, delete, archive, and restore Messenger conversations.",
   "author": "andrewtryder",
