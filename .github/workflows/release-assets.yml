@@ -38,10 +38,11 @@ jobs:
           cache: npm
 
       - name: Verify release tag matches manifest version
+        env:
+          TARGET_TAG: ${{ steps.target-tag.outputs.tag }}
         run: |
           MANIFEST_VER=$(node -p "require('./manifest.json').version")
           EXPECTED_TAG="chrome-delete-facebook-messages-v${MANIFEST_VER}"
-          TARGET_TAG="${{ steps.target-tag.outputs.tag }}"
           if [ "${TARGET_TAG}" != "${EXPECTED_TAG}" ] && [ "${TARGET_TAG}" != "v${MANIFEST_VER}" ]; then
             echo "❌ Target tag ${TARGET_TAG} does not match manifest.json version ${MANIFEST_VER}"
             exit 1
@@ -53,7 +54,7 @@ jobs:
           npm ci
           npm run build
           npm run package
-          cd dist && sha256sum *.zip > SHA256SUMS.txt && cd ..
+          cd dist && sha256sum ./*.zip > SHA256SUMS.txt && cd ..
 
       - name: Publish zip assets to release
         env:
