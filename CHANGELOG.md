@@ -1,5 +1,12 @@
 # Changelog
 
+## [3.10.1](https://github.com/andrewtryder/chrome-delete-facebook-messages/compare/chrome-delete-facebook-messages-v3.10.0...chrome-delete-facebook-messages-v3.10.1) (2026-09-23)
+
+
+### Bug Fixes
+
+* remediate security, correctness, and release pipeline review findings ([#10](https://github.com/andrewtryder/chrome-delete-facebook-messages/issues/10)) ([d4624ff](https://github.com/andrewtryder/chrome-delete-facebook-messages/commit/d4624ff8f21a2cb2c2201ecdcdbed3467bbc161d))
+
 ## [3.10.0](https://github.com/andrewtryder/chrome-delete-facebook-messages/compare/chrome-delete-facebook-messages-v3.9.0...chrome-delete-facebook-messages-v3.10.0) (2026-09-17)
 
 
