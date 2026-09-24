@@ -1,5 +1,17 @@
 # Changelog
 
+## [3.11.0](https://github.com/andrewtryder/chrome-delete-facebook-messages/compare/chrome-delete-facebook-messages-v3.10.1...chrome-delete-facebook-messages-v3.11.0) (2026-09-24)
+
+
+### Features
+
+* automate Chrome Web Store publishing and add smoke test workflow ([#12](https://github.com/andrewtryder/chrome-delete-facebook-messages/issues/12)) ([88b3284](https://github.com/andrewtryder/chrome-delete-facebook-messages/commit/88b3284c34224ccb71b4fcc5940fa6d7a44f0e7b))
+
+
+### Bug Fixes
+
+* support CWS configuration from either secrets or variables ([#14](https://github.com/andrewtryder/chrome-delete-facebook-messages/issues/14)) ([505b4b8](https://github.com/andrewtryder/chrome-delete-facebook-messages/commit/505b4b8a191dcf75471a8361531e4cb48e3d735a))
+
 ## [3.10.1](https://github.com/andrewtryder/chrome-delete-facebook-messages/compare/chrome-delete-facebook-messages-v3.10.0...chrome-delete-facebook-messages-v3.10.1) (2026-09-23)
 
 
