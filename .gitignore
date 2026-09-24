@@ -3,3 +3,7 @@ test-results/
 .playwright/
 /messenger-structure.json
 dist/
+.env
+.env.*
+!.env.example
+.DS_Store

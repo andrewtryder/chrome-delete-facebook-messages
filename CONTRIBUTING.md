@@ -89,6 +89,27 @@ Breaking changes trigger a **MAJOR** version bump (e.g., 3.8.0 → 4.0.0).
    - Release Please creates the corresponding Git tag (e.g., `v3.8.1`).
    - Release Please publishes the GitHub Release with the compiled changelog notes.
    - The authoritative version in [`manifest.json`](manifest.json) matches the release tag.
+   - GitHub Actions automatically authenticates via Google Workload Identity Federation, packages the production extension, uploads the versioned archive to Chrome Web Store API v2, and submits it for review with `DEFAULT_PUBLISH`.
+
+### Automated Chrome Web Store Publishing
+
+The GitHub Actions release workflow (`.github/workflows/release-please.yml`) automatically uploads and submits production packages to the Chrome Web Store upon release creation.
+
+#### Required GitHub Repository Variables
+The following repository variables must be configured under **Settings > Secrets and variables > Actions > Variables**:
+
+| Variable Name | Purpose | Example / Format |
+|---|---|---|
+| `GCP_WORKLOAD_IDENTITY_PROVIDER` | Full resource name of Google WIF provider | `projects/123456/locations/global/workloadIdentityPools/github-pool/providers/github-provider` |
+| `GCP_SERVICE_ACCOUNT` | Email of Google service account for CWS | `cws-publisher@project-id.iam.gserviceaccount.com` |
+| `CWS_EXTENSION_ID` | Chrome Web Store Extension Item ID | `abcdefghijklmnopabcdefghijklmnop` |
+| `CWS_PUBLISHER_ID` | Chrome Web Store Developer / Publisher ID | `pub-1234567890123456` |
+
+#### Security & Operational Architecture
+- **Keyless Authentication**: Authentication uses GitHub Actions OIDC tokens federated directly with Google Workload Identity Federation (`google-github-actions/auth`). No long-lived service account JSON key exists or should ever be generated.
+- **Trigger Condition**: Publishing steps run **only** when a new release is actually published (`steps.release.outputs.releases_created == 'true'`), never during normal PR checks or standard commits to `main`.
+- **Review & Publication**: Releases submit with `DEFAULT_PUBLISH` and `skipReview: false`. Google's automated/manual review process still takes place; once approved, the extension is published automatically without further manual intervention.
+- **Local Environment Isolation**: Local development `.env` files are never referenced or read by GitHub Actions. Local `.env` files are ignored by git and must **never** be committed.
 
 ---
 
