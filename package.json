@@ -21,6 +21,6 @@
     "package": "node scripts/package-zip.js"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1"
+    "@playwright/test": "^1.64.0"
   }
 }
